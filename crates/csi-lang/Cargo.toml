@@ -1,0 +1,17 @@
+[package]
+name = "csi-lang"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tree-sitter.workspace = true
+tree-sitter-typescript.workspace = true
+tree-sitter-javascript.workspace = true
+tree-sitter-php.workspace = true
+tree-sitter-html.workspace = true
+tree-sitter-angular.workspace = true
+tree-sitter-scss.workspace = true
+tree-sitter-css.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+regex.workspace = true

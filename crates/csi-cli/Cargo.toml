@@ -1,0 +1,10 @@
+[package]
+name = "csi-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "csi"
+path = "src/main.rs"
+
+[dependencies]

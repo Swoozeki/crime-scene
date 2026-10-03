@@ -1,0 +1,11 @@
+[package]
+name = "csi-arch"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+csi-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+globset.workspace = true
+regex.workspace = true

@@ -1,0 +1,8 @@
+[package]
+name = "csi-mcp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rmcp.workspace = true
+schemars.workspace = true

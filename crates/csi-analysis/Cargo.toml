@@ -1,0 +1,20 @@
+[package]
+name = "csi-analysis"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+csi-core.workspace = true
+csi-lang.workspace = true
+csi-arch.workspace = true
+csi-ingest.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rusqlite.workspace = true
+regex.workspace = true
+rayon.workspace = true
+
+[dev-dependencies]
+csi-ingest = { workspace = true, features = ["testutil"] }
+tempfile.workspace = true

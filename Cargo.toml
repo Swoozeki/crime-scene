@@ -1,0 +1,53 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+csi-core = { path = "crates/csi-core" }
+csi-ingest = { path = "crates/csi-ingest" }
+csi-lang = { path = "crates/csi-lang" }
+csi-arch = { path = "crates/csi-arch" }
+csi-analysis = { path = "crates/csi-analysis" }
+csi-server = { path = "crates/csi-server" }
+csi-mcp = { path = "crates/csi-mcp" }
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+rusqlite = { version = "0.40", features = ["bundled"] }
+regex = "1"
+globset = "0.4"
+rayon = "1"
+tracing = "0.1"
+tempfile = "3"
+tree-sitter = "0.25"
+tree-sitter-typescript = "0.23"
+tree-sitter-javascript = "0.25"
+tree-sitter-php = "0.24"
+tree-sitter-html = "0.23"
+tree-sitter-angular = "0.9"
+tree-sitter-scss = "1"
+tree-sitter-css = "0.25"
+walkdir = "2"
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+rust-embed = "8"
+rmcp = { version = "3.5", features = ["server", "transport-io"] }
+schemars = "1"
+clap = { version = "4", features = ["derive"] }
+comfy-table = "7"
+owo-colors = "4"
+indicatif = "0.18"
+unicode-normalization = "0.1"
+dirs = "6"
+mime_guess = "2"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4

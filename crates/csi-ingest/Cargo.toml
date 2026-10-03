@@ -1,0 +1,20 @@
+[package]
+name = "csi-ingest"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+csi-core.workspace = true
+csi-lang.workspace = true
+anyhow.workspace = true
+rusqlite.workspace = true
+rayon.workspace = true
+globset.workspace = true
+serde_json.workspace = true
+tempfile = { workspace = true, optional = true }
+
+[features]
+testutil = ["dep:tempfile"]
+
+[dev-dependencies]
+tempfile.workspace = true
