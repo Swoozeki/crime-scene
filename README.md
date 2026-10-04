@@ -65,7 +65,8 @@ csi serve --open
 ## Install
 
 csi is built from source for now. You need [Rust](https://rustup.rs) (stable), plus
-Node 20+ and [pnpm](https://pnpm.io) to build the web app that gets embedded in the binary.
+[Node.js](https://nodejs.org) 22.12+ (or 20.19+) and [pnpm](https://pnpm.io) to build the web app
+that gets embedded in the binary. Check with `node -v`.
 
 ```bash
 git clone https://github.com/Swoozeki/crime-scene.git
