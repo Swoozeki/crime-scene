@@ -224,7 +224,8 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
         let r = find(&mut parent, c.a);
         comps.entry(r).or_default().push(i);
     }
-    let mut groups: Vec<(u32, Vec<(u32, crate::coupling::Coupling, By)>)> = comps
+    type Member = (u32, crate::coupling::Coupling, By);
+    let mut groups: Vec<(u32, Vec<Member>)> = comps
         .into_values()
         .map(|idxs| {
             let hub = idxs
@@ -232,7 +233,7 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
                 .flat_map(|&i| [pairs[i].0.a, pairs[i].0.b])
                 .max_by_key(|k| (degree[k], std::cmp::Reverse(*k)))
                 .unwrap();
-            let mut members: Vec<(u32, crate::coupling::Coupling, By)> = vec![];
+            let mut members: Vec<Member> = vec![];
             let mut seen = std::collections::HashSet::new();
             let mut sorted = idxs.clone();
             sorted.sort_by(|&x, &y| pairs[y].0.degree().total_cmp(&pairs[x].0.degree()));
@@ -424,7 +425,7 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
             (o.recent_authors >= 8 || teams >= 3).then_some((h, o.recent_authors, teams))
         })
         .collect();
-    coord.sort_by(|a, b| (b.1 as usize + b.2 * 3).cmp(&(a.1 as usize + a.2 * 3)));
+    coord.sort_by_key(|c| std::cmp::Reverse(c.1 as usize + c.2 * 3));
     for (h, authors, teams) in coord.into_iter().take(5) {
         out.push(Finding {
             id: String::new(),

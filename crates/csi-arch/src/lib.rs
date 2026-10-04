@@ -351,7 +351,7 @@ impl UnitIndex {
             })
             .collect();
         let mut by_root = arch.units.clone();
-        by_root.sort_by(|a, b| b.root.len().cmp(&a.root.len()));
+        by_root.sort_by_key(|a| std::cmp::Reverse(a.root.len()));
         Self { manual, by_root, fallback_depth }
     }
 

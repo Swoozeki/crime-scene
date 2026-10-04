@@ -74,8 +74,8 @@ pub fn resolve(idents: &[Identity], cfg: &Config) -> (HashMap<i64, u32>, Vec<Res
             }
         }
     }
-    for i in 0..n {
-        if let Some(c) = canonical_idx[i].clone() {
+    for (i, c) in canonical_idx.iter().enumerate() {
+        if let Some(c) = c.clone() {
             let r = find(&mut parent, i);
             canonical_of_root.insert(r, c);
         }

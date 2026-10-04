@@ -695,7 +695,7 @@ fn run(cli: Cli) -> Result<()> {
                 );
             }
             let mut sorted = fns.clone();
-            sorted.sort_by(|a, b| b.cc.cmp(&a.cc));
+            sorted.sort_by_key(|f| std::cmp::Reverse(f.cc));
             if !sorted.is_empty() {
                 let mut t = out::table(&["function", "cc", "nesting", "loc", "lines"]);
                 for func in sorted.iter().take(15) {
