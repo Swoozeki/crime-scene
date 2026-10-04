@@ -248,7 +248,9 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
         })
         .collect();
     groups.sort_by(|a, b| {
-        let best = |g: &Vec<(u32, crate::coupling::Coupling, By)>| g.iter().map(|m| m.1.degree() * m.1.support as f64).fold(0.0, f64::max);
+        let best = |g: &Vec<(u32, crate::coupling::Coupling, By)>| {
+            g.iter().map(|m| m.1.degree() * m.1.support as f64).fold(0.0, f64::max)
+        };
         best(&b.1).total_cmp(&best(&a.1))
     });
     let label = |k: u32| -> String {
@@ -445,29 +447,52 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
         });
     }
 
-    // --- defect magnets
-    let mut magnets: Vec<&Hotspot> =
-        ent.iter().filter(|h| !h.test && h.defects >= 5 && h.defect_density >= 0.4).collect();
-    magnets.sort_by(|a, b| b.defects.cmp(&a.defects));
-    for h in magnets.into_iter().take(5) {
+    // --- defect magnets: fix rate well above the repo's own baseline (conventional-commit repos
+    // label many changes "fix:", so an absolute threshold would flag everything)
+    let mut base: HashMap<u32, (u32, u32)> = HashMap::new();
+    for c in ds.commits.iter().filter(|c| !c.format) {
+        let e = base.entry(c.repo).or_default();
+        e.0 += c.defect as u32;
+        e.1 += 1;
+    }
+    let baseline = |repo: &str| -> f64 {
+        ds.repos
+            .iter()
+            .position(|r| r.name == repo)
+            .and_then(|i| base.get(&(i as u32)))
+            .map(|(d, n)| *d as f64 / (*n).max(1) as f64)
+            .unwrap_or(0.0)
+    };
+    let mut magnets: Vec<(&Hotspot, f64)> = ent
+        .iter()
+        .filter(|h| !h.test && h.defects >= 5)
+        .filter_map(|h| {
+            let b = baseline(&h.repo).max(0.05);
+            let ratio = h.defect_density / b;
+            (h.defect_density >= 0.4 && ratio >= 1.5).then_some((h, ratio))
+        })
+        .collect();
+    magnets.sort_by(|a, b| (b.1 * b.0.defects as f64).total_cmp(&(a.1 * a.0.defects as f64)));
+    for (h, ratio) in magnets.into_iter().take(5) {
         out.push(Finding {
             id: String::new(),
             kind_label: String::new(),
             kind: "defect_magnet".into(),
-            severity: sev(30.0 + 40.0 * h.defect_density + h.defects.min(30) as f64 + h.score * 10.0),
+            severity: sev(30.0 + 20.0 * (ratio - 1.0).min(1.5) + h.defects.min(30) as f64 * 0.5 + h.score * 10.0),
             title: format!(
-                "Defect magnet: {:.0}% of changes to {} are fixes ({} of {})",
+                "Defect magnet: {:.0}% of changes to {} are fixes ({} of {}; {:.1}× the repo's rate)",
                 h.defect_density * 100.0,
                 h.display,
                 h.defects,
-                h.revisions
+                h.revisions,
+                ratio
             ),
             subject: h.name.clone(),
             level: Level::Entity,
             key: h.key,
             repo: h.repo.clone(),
             unit: h.unit.clone(),
-            evidence: json!({"defects": h.defects, "revisions": h.revisions, "density": round2(h.defect_density)}),
+            evidence: json!({"defects": h.defects, "revisions": h.revisions, "density": round2(h.defect_density), "repo_baseline": round2(baseline(&h.repo)), "ratio": round2(ratio)}),
             recommendation: "Bugs keep landing here. Strengthen tests around it before new features, and review recent fixes for a common root cause.".into(),
             related: vec![],
         });
@@ -494,7 +519,7 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
                 issues.push(format!("template complexity {:.0}", file.complexity));
             }
         }
-        if issues.is_empty() || ent_idx.get(&h.key).is_none() {
+        if issues.is_empty() || !ent_idx.contains_key(&h.key) {
             continue;
         }
         out.push(Finding {
@@ -519,10 +544,10 @@ pub fn findings(ds: &Dataset, db: Option<&Db>, scope: &Scope) -> Vec<Finding> {
         f.id = format!("F{:03}", i + 1);
         f.kind_label = kind_label(&f.kind).to_string();
         // the kind is shown separately; titles start with the subject
-        if let Some((prefix, rest)) = f.title.split_once(": ") {
-            if TITLE_PREFIXES.contains(&prefix) {
-                f.title = rest.to_string();
-            }
+        if let Some((prefix, rest)) = f.title.split_once(": ")
+            && TITLE_PREFIXES.contains(&prefix)
+        {
+            f.title = rest.to_string();
         }
     }
     out

@@ -39,8 +39,10 @@ static FEDERATION_FILE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^((module-)?federation\.config|webpack(\.[a-z]+)?\.config)\.(js|ts|mjs|cjs|json)$").unwrap()
 });
 static FEDERATION_CONTENT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"ModuleFederationPlugin|withModuleFederation(Plugin)?|withNativeFederation|@module-federation/|shareAll\s*\(")
-        .unwrap()
+    Regex::new(
+        r"ModuleFederationPlugin|withModuleFederation(Plugin)?|withNativeFederation|@module-federation/|shareAll\s*\(",
+    )
+    .unwrap()
 });
 
 fn basename(p: &str) -> &str {
@@ -78,27 +80,27 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
     // --- Angular workspace
     if path_set.contains("angular.json") {
         frameworks.insert("angular".into());
-        if let Some(json) = read("angular.json").and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()) {
-            if let Some(projects) = json.get("projects").and_then(|p| p.as_object()) {
-                for (name, p) in projects {
-                    let root = p.get("root").and_then(|r| r.as_str()).unwrap_or("");
-                    let root = if root.is_empty() {
-                        p.get("sourceRoot").and_then(|r| r.as_str()).unwrap_or("")
-                    } else {
-                        root
-                    };
-                    let kind = match p.get("projectType").and_then(|t| t.as_str()) {
-                        Some("library") => "lib",
-                        _ => "app",
-                    };
-                    add(&mut units, Unit {
+        if let Some(json) = read("angular.json").and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            && let Some(projects) = json.get("projects").and_then(|p| p.as_object())
+        {
+            for (name, p) in projects {
+                let root = p.get("root").and_then(|r| r.as_str()).unwrap_or("");
+                let root =
+                    if root.is_empty() { p.get("sourceRoot").and_then(|r| r.as_str()).unwrap_or("") } else { root };
+                let kind = match p.get("projectType").and_then(|t| t.as_str()) {
+                    Some("library") => "lib",
+                    _ => "app",
+                };
+                add(
+                    &mut units,
+                    Unit {
                         name: name.clone(),
                         kind: kind.into(),
                         root: root.trim_end_matches('/').to_string(),
                         tags: vec![],
                         source: "angular".into(),
-                    });
-                }
+                    },
+                );
             }
         }
     }
@@ -110,9 +112,11 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
     for p in paths.iter().filter(|p| basename(p) == "project.json" && !is_ignored_dir(p)) {
         let Some(json) = read(p).and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok()) else { continue };
         let root = dirname(p).to_string();
-        let name = json.get("name").and_then(|n| n.as_str()).map(str::to_string).unwrap_or_else(|| {
-            if root.is_empty() { repo_name.to_string() } else { basename(&root).to_string() }
-        });
+        let name = json
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| if root.is_empty() { repo_name.to_string() } else { basename(&root).to_string() });
         let kind = match json.get("projectType").and_then(|t| t.as_str()) {
             Some("library") => "lib",
             _ => "app",
@@ -160,20 +164,23 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
                 let mut dirs: BTreeSet<String> = BTreeSet::new();
                 for f in paths.iter().filter(|f| f.starts_with(&base_p)) {
                     let rest = &f[base_p.len()..];
-                    if let Some((d, _)) = rest.split_once('/') {
-                        if !(base == "app" && d == "Http") {
-                            dirs.insert(d.to_string());
-                        }
+                    if let Some((d, _)) = rest.split_once('/')
+                        && !(base == "app" && d == "Http")
+                    {
+                        dirs.insert(d.to_string());
                     }
                 }
                 for d in dirs {
-                    add(&mut units, Unit {
-                        name: format!("{base}/{d}"),
-                        kind: "layer".into(),
-                        root: format!("{prefix}{base}/{d}"),
-                        tags: vec![],
-                        source: "laravel".into(),
-                    });
+                    add(
+                        &mut units,
+                        Unit {
+                            name: format!("{base}/{d}"),
+                            kind: "layer".into(),
+                            root: format!("{prefix}{base}/{d}"),
+                            tags: vec![],
+                            source: "laravel".into(),
+                        },
+                    );
                 }
             }
         } else if symfony {
@@ -181,16 +188,21 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
             let base_p = format!("{prefix}src/");
             let dirs: BTreeSet<String> = paths
                 .iter()
-                .filter_map(|f| f.strip_prefix(base_p.as_str()).and_then(|r| r.split_once('/')).map(|(d, _)| d.to_string()))
+                .filter_map(|f| {
+                    f.strip_prefix(base_p.as_str()).and_then(|r| r.split_once('/')).map(|(d, _)| d.to_string())
+                })
                 .collect();
             for d in dirs {
-                add(&mut units, Unit {
-                    name: format!("src/{d}"),
-                    kind: "layer".into(),
-                    root: format!("{prefix}src/{d}"),
-                    tags: vec![],
-                    source: "symfony".into(),
-                });
+                add(
+                    &mut units,
+                    Unit {
+                        name: format!("src/{d}"),
+                        kind: "layer".into(),
+                        root: format!("{prefix}src/{d}"),
+                        tags: vec![],
+                        source: "symfony".into(),
+                    },
+                );
             }
         }
         if !root.is_empty() {
@@ -206,8 +218,9 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
     let mut feature_dirs: BTreeSet<String> = BTreeSet::new();
     for p in paths.iter().filter(|p| !is_ignored_dir(p) && !csi_lang_is_test(p)) {
         let name = basename(p);
-        let is_feature = (name.ends_with(".module.ts") && !name.ends_with("-routing.module.ts") && name != "app.module.ts")
-            || (name.ends_with(".routes.ts") && name != "app.routes.ts");
+        let is_feature =
+            (name.ends_with(".module.ts") && !name.ends_with("-routing.module.ts") && name != "app.module.ts")
+                || (name.ends_with(".routes.ts") && name != "app.routes.ts");
         if is_feature {
             feature_dirs.insert(dirname(p).to_string());
         }
@@ -216,13 +229,16 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
         if d.is_empty() || units.iter().any(|u| u.root == d) {
             continue;
         }
-        add(&mut units, Unit {
-            name: basename(&d).to_string(),
-            kind: "feature".into(),
-            root: d,
-            tags: vec![],
-            source: "angular".into(),
-        });
+        add(
+            &mut units,
+            Unit {
+                name: basename(&d).to_string(),
+                kind: "feature".into(),
+                root: d,
+                tags: vec![],
+                source: "angular".into(),
+            },
+        );
     }
 
     // --- Module federation: mark the owning unit as a micro-frontend
@@ -232,12 +248,20 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
             continue;
         }
         frameworks.insert("module-federation".into());
-        let role = if text.contains("exposes") { "remote" } else if text.contains("remotes") { "host" } else { "mfe" };
+        let role = if text.contains("exposes") {
+            "remote"
+        } else if text.contains("remotes") {
+            "host"
+        } else {
+            "mfe"
+        };
         let dir = dirname(p).to_string();
         // the unit that owns this config: exact root, else nearest ancestor that isn't a feature
         let owner = units
             .iter_mut()
-            .filter(|u| u.kind != "feature" && (u.root == dir || dir.starts_with(&format!("{}/", u.root)) || u.root.is_empty()))
+            .filter(|u| {
+                u.kind != "feature" && (u.root == dir || dir.starts_with(&format!("{}/", u.root)) || u.root.is_empty())
+            })
             .max_by_key(|u| u.root.len());
         match owner {
             Some(u) if !u.root.is_empty() || dir.is_empty() => {
@@ -246,13 +270,16 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
                     u.tags.push(role.into());
                 }
             }
-            _ => add(&mut units, Unit {
-                name: unit_name(&dir, basename(&dir)),
-                kind: "mfe".into(),
-                root: dir,
-                tags: vec![role.into()],
-                source: "module-federation".into(),
-            }),
+            _ => add(
+                &mut units,
+                Unit {
+                    name: unit_name(&dir, basename(&dir)),
+                    kind: "mfe".into(),
+                    root: dir,
+                    tags: vec![role.into()],
+                    source: "module-federation".into(),
+                },
+            ),
         }
     }
 
@@ -271,7 +298,11 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
 // Avoid a dependency on csi-lang for one helper.
 fn csi_lang_is_test(p: &str) -> bool {
     let l = p.to_ascii_lowercase();
-    l.contains(".spec.") || l.contains("/test/") || l.contains("/tests/") || l.contains("/e2e/") || l.starts_with("tests/")
+    l.contains(".spec.")
+        || l.contains("/test/")
+        || l.contains("/tests/")
+        || l.contains("/e2e/")
+        || l.starts_with("tests/")
 }
 
 /// Resolves files to units for one repo: manual globs, then longest plugin root, then directory fallback.
@@ -282,8 +313,25 @@ pub struct UnitIndex {
 }
 
 const CONTAINERS: &[&str] = &[
-    "apps", "libs", "packages", "projects", "services", "modules", "src", "app", "lib", "components", "features",
-    "pages", "domains", "Http", "Controllers", "resources", "assets", "js", "ts",
+    "apps",
+    "libs",
+    "packages",
+    "projects",
+    "services",
+    "modules",
+    "src",
+    "app",
+    "lib",
+    "components",
+    "features",
+    "pages",
+    "domains",
+    "Http",
+    "Controllers",
+    "resources",
+    "assets",
+    "js",
+    "ts",
 ];
 
 impl UnitIndex {
@@ -293,13 +341,16 @@ impl UnitIndex {
             .filter(|u| u.repo.as_deref().is_none_or(|r| r == repo_name))
             .filter_map(|u| {
                 let g = Glob::new(&u.glob).ok()?.compile_matcher();
-                Some((g, Unit {
-                    name: u.name.clone(),
-                    kind: u.kind.clone(),
-                    root: u.glob.clone(),
-                    tags: vec![],
-                    source: "config".into(),
-                }))
+                Some((
+                    g,
+                    Unit {
+                        name: u.name.clone(),
+                        kind: u.kind.clone(),
+                        root: u.glob.clone(),
+                        tags: vec![],
+                        source: "config".into(),
+                    },
+                ))
             })
             .collect();
         let mut by_root = arch.units.clone();

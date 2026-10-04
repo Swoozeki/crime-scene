@@ -114,9 +114,8 @@ pub fn resolve(idents: &[Identity], cfg: &Config) -> (HashMap<i64, u32>, Vec<Res
         let mut emails: Vec<String> = members.iter().map(|&i| idents[i].email.to_lowercase()).collect();
         emails.sort();
         emails.dedup();
-        let is_bot = members
-            .iter()
-            .any(|&i| bots.iter().any(|b| b.is_match(&idents[i].name) || b.is_match(&idents[i].email)));
+        let is_bot =
+            members.iter().any(|&i| bots.iter().any(|b| b.is_match(&idents[i].name) || b.is_match(&idents[i].email)));
         let mut keys: Vec<String> = emails.clone();
         keys.push(normalize_name(&display));
         keys.extend(members.iter().map(|&i| normalize_name(&idents[i].name)));

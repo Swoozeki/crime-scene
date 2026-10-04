@@ -220,7 +220,8 @@ async fn static_file(uri: Uri) -> Response {
     let path = if path.is_empty() { "index.html" } else { path };
     match Assets::get(path).or_else(|| Assets::get("index.html")) {
         Some(f) => {
-            let mime = mime_guess::from_path(if Assets::get(path).is_some() { path } else { "index.html" }).first_or_octet_stream();
+            let mime = mime_guess::from_path(if Assets::get(path).is_some() { path } else { "index.html" })
+                .first_or_octet_stream();
             ([(header::CONTENT_TYPE, mime.as_ref().to_string())], f.data.into_owned()).into_response()
         }
         None => StatusCode::NOT_FOUND.into_response(),
@@ -277,13 +278,14 @@ pub fn export_html(engine: &Engine) -> Result<String> {
         }
     }
     // details for the entities a reader is most likely to open
-    let mut keys: Vec<u32> = hotspots(&engine.ds, Level::Entity, &Scope::default()).iter().take(60).map(|h| h.key).collect();
+    let mut keys: Vec<u32> =
+        hotspots(&engine.ds, Level::Entity, &Scope::default()).iter().take(60).map(|h| h.key).collect();
     if let Some(Value::Array(fs)) = data.get("findings") {
         for f in fs {
-            if f["level"] == "entity" {
-                if let Some(k) = f["key"].as_u64() {
-                    keys.push(k as u32);
-                }
+            if f["level"] == "entity"
+                && let Some(k) = f["key"].as_u64()
+            {
+                keys.push(k as u32);
             }
         }
     }

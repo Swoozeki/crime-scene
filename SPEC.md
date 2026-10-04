@@ -364,3 +364,33 @@ inlines responses for all views except diff and on-demand xray/trend beyond prec
 ## 14. Explicit non-goals (v1)
 Duplication detection, IDE plugin, hosted/multi-user server, issue-tracker API integration (ticket types),
 LLM calls of any kind, languages beyond TS/JS/Angular/HTML/SCSS/CSS/PHP (fallback still covers them).
+
+---
+
+## 15. Implementation notes (as built, after calibration on real repos)
+
+Calibrated against koel (Laravel + Vue, 3.8k commits), ngrx/platform (Angular Nx monorepo, 2.3k
+commits) and angular/angular (10.5k commits in the 3-year window). Changes from the plan above:
+
+- **Hotspot score** uses log-scaled frequency relative to the busiest *code* key (not a percentile):
+  percentiles flattened 5 and 80 changes into the same bucket. Test-only keys count half.
+- **Trends** compare complexity now vs. ~one year ago (denser sampling in the last year).
+  Comparing against a file's first version marked every growing file as "deteriorating".
+- **Release / version-bump commits** (`chore: release`, `v1.2.3`, …) are neutralized like formatting
+  sweeps — they created fake coupling between every `package.json` in a monorepo.
+- **AI co-authors** (`Co-authored-by: Claude/Copilot/…`) are bots; bot co-authors are dropped
+  without dropping the commit.
+- **Defect magnets** are relative to the repo's own fix rate (≥ 1.5×) — conventional-commit repos
+  label most changes `fix:`.
+- **Hidden coupling** findings are clustered (connected components) so N copies of one duplicated
+  file produce one finding; coupling/ripple findings require code (not config) on both sides.
+- **X-ray ranking**: frequency-led, scaled by complexity up to cc 15.
+- **Default branch** without a remote: `main`/`master`/`develop`/`trunk` before `HEAD`, so checking
+  out a feature branch doesn't change what is analyzed.
+- **Not built (yet):** the ticketless "same author within 4h" cross-repo grouping (§8.2 fallback);
+  an automated Playwright UI suite (views were verified by hand in light and dark mode).
+- **Static export** bakes in all list views plus detail pages for the top ~60 entities and every
+  entity named in a finding; change-risk needs the live app.
+
+Measured: angular/angular, 10.5k commits / 10k files, first scan 40 s (git log itself ≈ 18 s),
+no-change rescan ≈ 2 s, `csi report` < 1 s, peak memory ≈ 500 MB.

@@ -75,12 +75,24 @@ pub fn table(header: &[&str]) -> Table {
 pub fn bar(x: f64, width: usize) -> String {
     let filled = (x.clamp(0.0, 1.0) * width as f64).round() as usize;
     let s = format!("{}{}", "█".repeat(filled), "·".repeat(width - filled));
-    if x >= 0.7 { c::red(&s) } else if x >= 0.4 { c::yellow(&s) } else { c::dim(&s) }
+    if x >= 0.7 {
+        c::red(&s)
+    } else if x >= 0.4 {
+        c::yellow(&s)
+    } else {
+        c::dim(&s)
+    }
 }
 
 pub fn health_cell(h: f64) -> String {
     let s = format!("{h:.1}");
-    if h < 4.0 { c::red(&s) } else if h < 7.0 { c::yellow(&s) } else { c::green(&s) }
+    if h < 4.0 {
+        c::red(&s)
+    } else if h < 7.0 {
+        c::yellow(&s)
+    } else {
+        c::green(&s)
+    }
 }
 
 pub fn trend_cell(d: &str) -> String {
@@ -153,7 +165,14 @@ pub fn print_detail(engine: &Engine, d: &Detail) {
         println!(
             "  {} {}",
             f.path,
-            c::dim(&format!("{} · {} loc · cc {:.0} · health {:.1}{}", f.lang, f.loc, f.complexity, f.health, if f.test { " · test" } else { "" }))
+            c::dim(&format!(
+                "{} · {} loc · cc {:.0} · health {:.1}{}",
+                f.lang,
+                f.loc,
+                f.complexity,
+                f.health,
+                if f.test { " · test" } else { "" }
+            ))
         );
     }
     if let Some(x) = &d.xray {
@@ -161,14 +180,25 @@ pub fn print_detail(engine: &Engine, d: &Detail) {
         if !hot.is_empty() {
             println!("\n{}", c::bold("X-ray (functions by change × complexity)"));
             for f in hot {
-                println!("  {} {}  {}", bar(f.score, 6), f.name, c::dim(&format!("{}× · cc {} · L{}–{}", f.revisions, f.cc, f.start, f.end)));
+                println!(
+                    "  {} {}  {}",
+                    bar(f.score, 6),
+                    f.name,
+                    c::dim(&format!("{}× · cc {} · L{}–{}", f.revisions, f.cc, f.start, f.end))
+                );
             }
         }
     }
     if !d.coupling.is_empty() {
         println!("\n{}", c::bold("Changes together with"));
         for p in d.coupling.iter().take(10) {
-            let tag = if p.cross_repo { c::red(" cross-repo") } else if p.cross_unit { c::yellow(" cross-unit") } else { String::new() };
+            let tag = if p.cross_repo {
+                c::red(" cross-repo")
+            } else if p.cross_unit {
+                c::yellow(" cross-unit")
+            } else {
+                String::new()
+            };
             println!(
                 "  {:>4.0}%  {}{}{}  {}",
                 p.confidence * 100.0,
@@ -190,7 +220,12 @@ pub fn print_detail(engine: &Engine, d: &Detail) {
         println!("  {}", a.join(", "));
         println!(
             "  {}",
-            c::dim(&format!("bus factor {} · knowledge loss {:.0}% · {} authors in the last year", o.bus_factor, o.knowledge_loss * 100.0, o.recent_authors))
+            c::dim(&format!(
+                "bus factor {} · knowledge loss {:.0}% · {} authors in the last year",
+                o.bus_factor,
+                o.knowledge_loss * 100.0,
+                o.recent_authors
+            ))
         );
     }
     if !d.experts.is_empty() {
@@ -243,7 +278,10 @@ pub fn print_diff(r: &DiffReport) {
         t.add_row(vec![
             if r.repos.len() > 1 { format!("{}:{}", f.repo, f.path) } else { f.path.clone() },
             format!("+{} -{}", f.added, f.deleted),
-            f.hotspot_rank.filter(|_| f.hotspot_score > 0.0).map(|x| format!("#{x} ({:.2})", f.hotspot_score)).unwrap_or_default(),
+            f.hotspot_rank
+                .filter(|_| f.hotspot_score > 0.0)
+                .map(|x| format!("#{x} ({:.2})", f.hotspot_score))
+                .unwrap_or_default(),
             cx,
             h,
             fns.join(", "),
@@ -258,7 +296,12 @@ pub fn print_diff(r: &DiffReport) {
                 m.confidence * 100.0,
                 if m.kind == "cross-repo" { format!("{}:", m.repo) } else { String::new() },
                 m.path,
-                c::dim(&format!("with {} · {}× · {}", m.because_of.rsplit('/').next().unwrap_or(&m.because_of), m.support, m.kind))
+                c::dim(&format!(
+                    "with {} · {}× · {}",
+                    m.because_of.rsplit('/').next().unwrap_or(&m.because_of),
+                    m.support,
+                    m.kind
+                ))
             );
         }
     }

@@ -113,9 +113,7 @@ impl Db {
         let db = Db { conn };
         let version: Option<i64> = db
             .conn
-            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| {
-                r.get::<_, String>(0)
-            })
+            .query_row("SELECT value FROM meta WHERE key='schema_version'", [], |r| r.get::<_, String>(0))
             .optional()
             .unwrap_or(None)
             .and_then(|v| v.parse().ok());
@@ -128,9 +126,8 @@ impl Db {
     /// Drop everything and recreate the schema.
     pub fn reset(&self) -> Result<()> {
         let tables: Vec<String> = {
-            let mut st = self
-                .conn
-                .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")?;
+            let mut st =
+                self.conn.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")?;
             st.query_map([], |r| r.get(0))?.collect::<Result<_, _>>()?
         };
         for t in tables {
@@ -161,15 +158,11 @@ impl Db {
     }
 
     pub fn meta_get(&self, key: &str) -> Result<Option<String>> {
-        Ok(self
-            .conn
-            .query_row("SELECT value FROM meta WHERE key=?1", [key], |r| r.get(0))
-            .optional()?)
+        Ok(self.conn.query_row("SELECT value FROM meta WHERE key=?1", [key], |r| r.get(0)).optional()?)
     }
 
     pub fn meta_set(&self, key: &str, value: &str) -> Result<()> {
-        self.conn
-            .execute("INSERT OR REPLACE INTO meta(key, value) VALUES (?1, ?2)", params![key, value])?;
+        self.conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES (?1, ?2)", params![key, value])?;
         Ok(())
     }
 }

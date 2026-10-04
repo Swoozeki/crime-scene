@@ -308,7 +308,8 @@ impl Dataset {
             m
         };
         {
-            let mut st = db.conn.prepare("SELECT id, repo_id, sha, author_id, ts, message FROM commits ORDER BY ts, id")?;
+            let mut st =
+                db.conn.prepare("SELECT id, repo_id, sha, author_id, ts, message FROM commits ORDER BY ts, id")?;
             let rows = st.query_map([], |r| {
                 Ok((
                     r.get::<_, i64>(0)?,
@@ -384,7 +385,13 @@ impl Dataset {
         for (ci, c) in commits.iter_mut().enumerate() {
             c.format = (c.format && c.changes.len() >= 10) || RELEASE_RE.is_match(&c.subject);
             c.mega = c.changes.len() > max_files;
-            c.weight = if c.format { 0.0 } else if c.mega { 0.25 } else { 1.0 };
+            c.weight = if c.format {
+                0.0
+            } else if c.mega {
+                0.25
+            } else {
+                1.0
+            };
             for ch in &c.changes {
                 files[ch.file as usize].commits.push(ci as u32);
             }
@@ -511,7 +518,10 @@ impl Dataset {
                  JOIN commits c ON c.id = tp.commit_id JOIN blob_metrics b ON b.blob = tp.blob ORDER BY c.ts",
             )?;
             let rows = st.query_map([], |r| {
-                Ok((r.get::<_, i64>(0)?, TrendPoint { ts: r.get(1)?, complexity: r.get(2)?, loc: r.get(3)?, max_cc: r.get(4)? }))
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    TrendPoint { ts: r.get(1)?, complexity: r.get(2)?, loc: r.get(3)?, max_cc: r.get(4)? },
+                ))
             })?;
             for row in rows {
                 let (fid, p) = row?;
@@ -608,16 +618,15 @@ impl Dataset {
 
     /// Find a file by repo-relative path, an absolute path, or a unique suffix.
     pub fn find_file(&self, path: &str, repo: Option<&str>) -> Option<u32> {
-        let candidates: Vec<u32> = (0..self.repos.len() as u32)
-            .filter(|&r| repo.is_none_or(|n| self.repos[r as usize].name == n))
-            .collect();
+        let candidates: Vec<u32> =
+            (0..self.repos.len() as u32).filter(|&r| repo.is_none_or(|n| self.repos[r as usize].name == n)).collect();
         let p = std::path::Path::new(path);
         if p.is_absolute() {
             for &r in &candidates {
-                if let Ok(rel) = p.strip_prefix(&self.repos[r as usize].path) {
-                    if let Some(&f) = self.file_by_path.get(&(r, rel.to_string_lossy().to_string())) {
-                        return Some(f);
-                    }
+                if let Ok(rel) = p.strip_prefix(&self.repos[r as usize].path)
+                    && let Some(&f) = self.file_by_path.get(&(r, rel.to_string_lossy().to_string()))
+                {
+                    return Some(f);
                 }
             }
         }

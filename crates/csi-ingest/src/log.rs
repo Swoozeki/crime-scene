@@ -45,12 +45,8 @@ pub fn stream_log(
         cmd.arg(format!("--since={s}"));
     }
     cmd.arg(range).arg("--");
-    let mut child = cmd
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .context("spawning git log")?;
+    let mut child =
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().context("spawning git log")?;
     let mut reader = BufReader::with_capacity(1 << 20, child.stdout.take().unwrap());
     let mut buf = Vec::with_capacity(1 << 16);
     let mut n = 0;
@@ -133,18 +129,18 @@ fn parse_numstat(line: &str) -> Option<RawChange> {
 
 /// Expand numstat rename notation: `a/{b => c}/d` or `old => new`.
 pub fn split_rename(p: &str) -> (Option<String>, String) {
-    if let (Some(open), Some(close)) = (p.find('{'), p.rfind('}')) {
-        if open < close {
-            let inner = &p[open + 1..close];
-            if let Some((from, to)) = inner.split_once(" => ") {
-                let pre = &p[..open];
-                let post = &p[close + 1..];
-                let join = |mid: &str| {
-                    let s = format!("{pre}{mid}{post}");
-                    s.replace("//", "/").trim_start_matches('/').to_string()
-                };
-                return (Some(join(from)), join(to));
-            }
+    if let (Some(open), Some(close)) = (p.find('{'), p.rfind('}'))
+        && open < close
+    {
+        let inner = &p[open + 1..close];
+        if let Some((from, to)) = inner.split_once(" => ") {
+            let pre = &p[..open];
+            let post = &p[close + 1..];
+            let join = |mid: &str| {
+                let s = format!("{pre}{mid}{post}");
+                s.replace("//", "/").trim_start_matches('/').to_string()
+            };
+            return (Some(join(from)), join(to));
         }
     }
     if let Some((from, to)) = p.split_once(" => ") {
@@ -211,10 +207,7 @@ mod tests {
 
     #[test]
     fn renames() {
-        assert_eq!(
-            split_rename("src/{old => new}/x.ts"),
-            (Some("src/old/x.ts".into()), "src/new/x.ts".into())
-        );
+        assert_eq!(split_rename("src/{old => new}/x.ts"), (Some("src/old/x.ts".into()), "src/new/x.ts".into()));
         assert_eq!(split_rename("src/{ => sub}/x.ts"), (Some("src/x.ts".into()), "src/sub/x.ts".into()));
         assert_eq!(split_rename("{a => b}/x.ts"), (Some("a/x.ts".into()), "b/x.ts".into()));
         assert_eq!(split_rename("a.ts => b.ts"), (Some("a.ts".into()), "b.ts".into()));

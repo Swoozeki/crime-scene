@@ -1,11 +1,11 @@
 //! Git history ingestion: streaming log parsing, rename tracking, current-tree metrics.
 
+#[cfg(any(test, feature = "testutil"))]
+pub mod fixture;
 pub mod git;
 pub mod ingest;
 pub mod log;
 pub mod metrics;
-#[cfg(any(test, feature = "testutil"))]
-pub mod fixture;
 
 pub use git::{CatFile, Git};
 pub use ingest::{IngestStats, ingest_repo};

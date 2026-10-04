@@ -17,8 +17,9 @@ static TEMPLATE_URL: LazyLock<Regex> =
 static STYLE_URLS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"styleUrls?\s*:\s*(\[[^\]]*\]|['"`][^'"`]+['"`])"#).unwrap());
 static QUOTED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"['"`]([^'"`]+)['"`]"#).unwrap());
-static FUNCTIONAL_GUARD: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r":\s*(CanActivateFn|CanMatchFn|CanDeactivateFn|ResolveFn|HttpInterceptorFn)\b").unwrap());
+static FUNCTIONAL_GUARD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r":\s*(CanActivateFn|CanMatchFn|CanDeactivateFn|ResolveFn|HttpInterceptorFn)\b").unwrap()
+});
 
 pub fn enrich(path: &str, text: &str, ctor_params: u32, summary: &mut Summary) {
     let name = path.rsplit('/').next().unwrap_or(path);

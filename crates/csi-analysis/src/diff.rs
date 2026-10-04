@@ -92,7 +92,9 @@ pub fn diff(ds: &Dataset, db: &Db, req: &DiffRequest) -> Result<DiffReport> {
     let base = git.rev_parse(&base_ref)?;
     let head = git.rev_parse(&head_ref)?;
     if base == head {
-        bail!("nothing to compare: {base_ref} and {head_ref} are the same commit (pass a base, e.g. `csi diff main..HEAD`)");
+        bail!(
+            "nothing to compare: {base_ref} and {head_ref} are the same commit (pass a base, e.g. `csi diff main..HEAD`)"
+        );
     }
     let numstat = git.run(&["diff", "--numstat", "-M", &base, &head])?;
     let patch = git.run(&["diff", "-U0", "--full-index", "-M", &base, &head])?;
@@ -121,23 +123,29 @@ pub fn diff(ds: &Dataset, db: &Db, req: &DiffRequest) -> Result<DiffReport> {
             (Some(_), None) => "deleted",
             _ => status,
         };
-        let fns_before: HashMap<&str, &Function> =
-            before.as_ref().map(|(_, m)| m.functions.iter().map(|f| (f.name.as_str(), f)).collect()).unwrap_or_default();
+        let fns_before: HashMap<&str, &Function> = before
+            .as_ref()
+            .map(|(_, m)| m.functions.iter().map(|f| (f.name.as_str(), f)).collect())
+            .unwrap_or_default();
         let mut functions = vec![];
         if let (Some((_, m)), Some(hs)) = (&after, hunks.get(&path)) {
             let mut names: Vec<&str> = vec![];
             for &(start, count) in hs {
                 for l in start..start + count.max(1) {
-                    if let Some(f) = csi_lang::function_at(&m.functions, l) {
-                        if !names.contains(&f.name.as_str()) {
-                            names.push(&f.name);
-                        }
+                    if let Some(f) = csi_lang::function_at(&m.functions, l)
+                        && !names.contains(&f.name.as_str())
+                    {
+                        names.push(&f.name);
                     }
                 }
             }
             for n in names {
                 let after_cc = m.functions.iter().find(|f| f.name == n).map(|f| f.cc);
-                functions.push(DiffFn { name: n.to_string(), cc_before: fns_before.get(n).map(|f| f.cc), cc_after: after_cc });
+                functions.push(DiffFn {
+                    name: n.to_string(),
+                    cc_before: fns_before.get(n).map(|f| f.cc),
+                    cc_after: after_cc,
+                });
             }
         }
         files.push(DiffFile {
@@ -171,9 +179,17 @@ pub fn diff(ds: &Dataset, db: &Db, req: &DiffRequest) -> Result<DiffReport> {
         }
     }
     let changed: HashSet<String> = files.iter().map(|f| f.path.clone()).collect();
-    let missed = missed_changes(ds, &touched, |f| ds.files[f as usize].repo == repo && changed.contains(&ds.files[f as usize].path));
+    let missed = missed_changes(ds, &touched, |f| {
+        ds.files[f as usize].repo == repo && changed.contains(&ds.files[f as usize].path)
+    });
     let reviewers: Vec<Expert> = experts(ds, &touched, &author_ids).into_iter().take(5).collect();
-    let (risk, reasons) = risk(ds, &files, &missed, &touched, &author_ids);
+    let newcomer = !author_names.is_empty() && author_ids.is_empty();
+    let (mut risk, mut reasons) = risk(ds, &files, &missed, &touched, &author_ids);
+    if newcomer && touched.iter().any(|&f| ds.files[f as usize].commits.len() >= 5) {
+        risk = (risk + 10).min(100);
+        reasons.retain(|r| !r.starts_with("no risk signals"));
+        reasons.push("author(s) have no history in this repository".into());
+    }
     Ok(DiffReport {
         title: format!("{} {}..{}", r.name, short(&base), short(&head)),
         repos: vec![r.name.clone()],
@@ -260,7 +276,8 @@ fn missed_changes(ds: &Dataset, touched: &[u32], in_change: impl Fn(u32) -> bool
     let touched_set: HashSet<u32> = touched.iter().copied().collect();
     let mut best: HashMap<u32, MissedChange> = HashMap::new();
     for by in [By::Commit, By::Ticket] {
-        let q = CouplingQuery { level: Level::File, by, include_expected: true, min_lift: Some(1.0), ..Default::default() };
+        let q =
+            CouplingQuery { level: Level::File, by, include_expected: true, min_lift: Some(1.0), ..Default::default() };
         for c in coupling(ds, &q, &Scope::default()) {
             for (src, dst, conf) in [(c.a, c.b, c.conf_ab), (c.b, c.a, c.conf_ba)] {
                 if !touched_set.contains(&src) || in_change(dst) || conf < 0.6 || c.support < 5 {
@@ -296,7 +313,13 @@ fn missed_changes(ds: &Dataset, touched: &[u32], in_change: impl Fn(u32) -> bool
     v
 }
 
-fn risk(ds: &Dataset, files: &[DiffFile], missed: &[MissedChange], touched: &[u32], authors: &[u32]) -> (u32, Vec<String>) {
+fn risk(
+    ds: &Dataset,
+    files: &[DiffFile],
+    missed: &[MissedChange],
+    touched: &[u32],
+    authors: &[u32],
+) -> (u32, Vec<String>) {
     let mut score = 0.0f64;
     let mut reasons = vec![];
     let max_hot = files.iter().map(|f| f.hotspot_score).fold(0.0, f64::max);
@@ -311,7 +334,12 @@ fn risk(ds: &Dataset, files: &[DiffFile], missed: &[MissedChange], touched: &[u3
             .take(3)
             .map(|f| format!("{} (#{})", f.path.rsplit('/').next().unwrap_or(&f.path), f.hotspot_rank.unwrap_or(0)))
             .collect();
-        reasons.push(format!("touches {} hotspot file{}: {}", hot.len(), if hot.len() == 1 { "" } else { "s" }, names.join(", ")));
+        reasons.push(format!(
+            "touches {} hotspot file{}: {}",
+            hot.len(),
+            if hot.len() == 1 { "" } else { "s" },
+            names.join(", ")
+        ));
     }
     let delta: i64 = files
         .iter()
@@ -350,9 +378,18 @@ fn risk(ds: &Dataset, files: &[DiffFile], missed: &[MissedChange], touched: &[u3
             .iter()
             .filter(|&&f| ds.files[f as usize].alive)
             .filter_map(|&f| {
-                let scope = Scope { repo: Some(ds.repos[ds.files[f as usize].repo as usize].name.clone()), path: Some(ds.files[f as usize].path.clone()), days: None, unit: None };
+                let scope = Scope {
+                    repo: Some(ds.repos[ds.files[f as usize].repo as usize].name.clone()),
+                    path: Some(ds.files[f as usize].path.clone()),
+                    days: None,
+                    unit: None,
+                };
                 ownership(ds, Level::File, &scope).into_iter().find(|o| o.key == f).map(|o| {
-                    o.authors.iter().filter(|a| authors.iter().any(|&x| ds.authors[x as usize].name == a.name)).map(|a| a.share).sum::<f64>()
+                    o.authors
+                        .iter()
+                        .filter(|a| authors.iter().any(|&x| ds.authors[x as usize].name == a.name))
+                        .map(|a| a.share)
+                        .sum::<f64>()
                 })
             })
             .fold(0.0, f64::max);
@@ -407,15 +444,15 @@ fn parse_patch(patch: &str) -> HashMap<String, Vec<(u32, u32)>> {
     for l in patch.lines() {
         if let Some(p) = l.strip_prefix("+++ ") {
             cur = (p != "/dev/null").then(|| csi_ingest::log::unquote(p).trim_start_matches("b/").to_string());
-        } else if l.starts_with("@@ ") {
-            if let (Some(c), Some(new)) = (&cur, l.split_whitespace().nth(2)) {
-                let new = new.trim_start_matches('+');
-                let (s, n) = match new.split_once(',') {
-                    Some((s, n)) => (s.parse().unwrap_or(0), n.parse().unwrap_or(0)),
-                    None => (new.parse().unwrap_or(0), 1),
-                };
-                out.entry(c.clone()).or_default().push((s, n));
-            }
+        } else if l.starts_with("@@ ")
+            && let (Some(c), Some(new)) = (&cur, l.split_whitespace().nth(2))
+        {
+            let new = new.trim_start_matches('+');
+            let (s, n) = match new.split_once(',') {
+                Some((s, n)) => (s.parse().unwrap_or(0), n.parse().unwrap_or(0)),
+                None => (new.parse().unwrap_or(0), 1),
+            };
+            out.entry(c.clone()).or_default().push((s, n));
         }
     }
     out
@@ -433,7 +470,8 @@ impl DiffReport {
         for r in &self.reasons {
             s.push_str(&format!("- {r}\n"));
         }
-        let hot: Vec<&DiffFile> = self.files.iter().filter(|f| f.hotspot_rank.is_some() && f.hotspot_score > 0.0).collect();
+        let hot: Vec<&DiffFile> =
+            self.files.iter().filter(|f| f.hotspot_rank.is_some() && f.hotspot_score > 0.0).collect();
         if !hot.is_empty() {
             s.push_str("\n**Touched hotspots**\n\n| File | Rank | Score | Complexity | Health | Functions touched |\n|---|---|---|---|---|---|\n");
             let mut hot = hot.clone();
@@ -476,7 +514,11 @@ impl DiffReport {
                 s.push_str(&format!(
                     "- `{}`{} — {:.0}% of changes to `{}` also touch it ({}×, {})\n",
                     m.path,
-                    if self.repos.len() > 1 || m.kind == "cross-repo" { format!(" ({})", m.repo) } else { String::new() },
+                    if self.repos.len() > 1 || m.kind == "cross-repo" {
+                        format!(" ({})", m.repo)
+                    } else {
+                        String::new()
+                    },
                     m.confidence * 100.0,
                     m.because_of.rsplit('/').next().unwrap_or(&m.because_of),
                     m.support,

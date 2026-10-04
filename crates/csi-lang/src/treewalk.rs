@@ -34,10 +34,10 @@ fn language(lang: Lang) -> Option<Language> {
 pub fn walk(lang: Lang, text: &str) -> Option<WalkResult> {
     let tree = PARSERS.with(|p| {
         let mut map = p.borrow_mut();
-        if !map.contains_key(&lang) {
+        if let std::collections::hash_map::Entry::Vacant(e) = map.entry(lang) {
             let mut parser = Parser::new();
             parser.set_language(&language(lang)?).ok()?;
-            map.insert(lang, parser);
+            e.insert(parser);
         }
         map.get_mut(&lang)?.parse(text, None)
     })?;
@@ -142,10 +142,9 @@ impl Walker<'_> {
                 self.methods += 1;
                 if kind == "method_definition"
                     && node.child_by_field_name("name").map(|n| self.text(n)) == Some("constructor")
+                    && let Some(p) = node.child_by_field_name("parameters")
                 {
-                    if let Some(p) = node.child_by_field_name("parameters") {
-                        self.ctor_params += p.named_child_count() as u32;
-                    }
+                    self.ctor_params += p.named_child_count() as u32;
                 }
             }
         } else if self.is_decision(node, kind) {
@@ -185,16 +184,14 @@ impl Walker<'_> {
                     | "arrow_function"
                     | "method_definition"
             ),
-            Lang::Php => matches!(
-                kind,
-                "function_definition" | "method_declaration" | "anonymous_function" | "arrow_function"
-            ),
+            Lang::Php => {
+                matches!(kind, "function_definition" | "method_declaration" | "anonymous_function" | "arrow_function")
+            }
             Lang::Template => match kind {
                 "if_statement" | "for_statement" | "switch_statement" | "defer_statement" => true,
-                "element" => node
-                    .child(0)
-                    .filter(|c| c.kind() == "start_tag")
-                    .is_some_and(|t| self.text(t).contains("*ng")),
+                "element" => {
+                    node.child(0).filter(|c| c.kind() == "start_tag").is_some_and(|t| self.text(t).contains("*ng"))
+                }
                 _ => false,
             },
             Lang::Scss | Lang::Css => kind == "rule_set",
@@ -283,7 +280,9 @@ impl Walker<'_> {
                 "catch_clause",
             ],
             Lang::Template => &["if_statement", "for_statement", "switch_statement", "defer_statement"],
-            Lang::Scss | Lang::Css => &["rule_set", "media_statement", "if_statement", "each_statement", "for_statement"],
+            Lang::Scss | Lang::Css => {
+                &["rule_set", "media_statement", "if_statement", "each_statement", "for_statement"]
+            }
             _ => &[],
         };
         if !kinds.contains(&kind) {

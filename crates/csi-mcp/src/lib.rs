@@ -138,12 +138,11 @@ impl CsiMcp {
 }
 
 fn resolve(engine: &Engine, path: &str, repo: Option<&str>) -> Option<u32> {
-    if let Ok(cwd) = std::env::current_dir() {
-        if let Ok(abs) = cwd.join(path).canonicalize() {
-            if let Some(f) = engine.ds.find_file(&abs.to_string_lossy(), repo) {
-                return Some(f);
-            }
-        }
+    if let Ok(cwd) = std::env::current_dir()
+        && let Ok(abs) = cwd.join(path).canonicalize()
+        && let Some(f) = engine.ds.find_file(&abs.to_string_lossy(), repo)
+    {
+        return Some(f);
     }
     engine.ds.find_file(path, repo)
 }
@@ -234,7 +233,9 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
         .await
     }
 
-    #[tool(description = "Ranked hotspots (change frequency × complexity) for the workspace, a repo, a unit or a path.")]
+    #[tool(
+        description = "Ranked hotspots (change frequency × complexity) for the workspace, a repo, a unit or a path."
+    )]
     async fn hotspots(&self, Parameters(a): Parameters<HotspotArgs>) -> Result<CallToolResult, ErrorData> {
         self.with_engine(move |engine| {
             let level = a.level.as_deref().and_then(Level::parse).unwrap_or(Level::Entity);
@@ -249,7 +250,9 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
         .await
     }
 
-    #[tool(description = "Files that change together with the given file (change coupling), with confidence and support. by=ticket finds coupling across repositories.")]
+    #[tool(
+        description = "Files that change together with the given file (change coupling), with confidence and support. by=ticket finds coupling across repositories."
+    )]
     async fn coupling(&self, Parameters(a): Parameters<CouplingArgs>) -> Result<CallToolResult, ErrorData> {
         self.with_engine(move |engine| {
             let Some(f) = resolve(engine, &a.path, a.repo.as_deref()) else { return not_found(&a.path) };
@@ -269,7 +272,9 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
         .await
     }
 
-    #[tool(description = "Function-level hotspots inside one file: which functions change most and how complex they are.")]
+    #[tool(
+        description = "Function-level hotspots inside one file: which functions change most and how complex they are."
+    )]
     async fn xray(&self, Parameters(a): Parameters<PathArgs>) -> Result<CallToolResult, ErrorData> {
         self.with_engine(move |engine| {
             let Some(f) = resolve(engine, &a.path, a.repo.as_deref()) else { return not_found(&a.path) };
@@ -293,12 +298,15 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
             let Some(f) = resolve(engine, &a.path, a.repo.as_deref()) else { return not_found(&a.path) };
             let ds = &engine.ds;
             let files = ds.entities[ds.files[f as usize].entity as usize].files.clone();
-            ok(serde_json::to_value(experts(ds, &files, &[]).into_iter().take(8).collect::<Vec<_>>()).unwrap_or_default())
+            ok(serde_json::to_value(experts(ds, &files, &[]).into_iter().take(8).collect::<Vec<_>>())
+                .unwrap_or_default())
         })
         .await
     }
 
-    #[tool(description = "Risk review of a change: a git range in one repo (default: current branch vs. its merge-base) or a ticket ID across repos. Reports touched hotspots, complexity deltas, likely-forgotten coupled files and reviewers.")]
+    #[tool(
+        description = "Risk review of a change: a git range in one repo (default: current branch vs. its merge-base) or a ticket ID across repos. Reports touched hotspots, complexity deltas, likely-forgotten coupled files and reviewers."
+    )]
     async fn review_diff(&self, Parameters(a): Parameters<DiffArgs>) -> Result<CallToolResult, ErrorData> {
         self.with_engine(move |engine| {
             let req = DiffRequest {
@@ -321,7 +329,9 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
         .await
     }
 
-    #[tool(description = "Ranked findings for the workspace: hotspots, function hotspots, hidden coupling, knowledge loss, bus factor, coordination bottlenecks, defect magnets, bloated Angular components.")]
+    #[tool(
+        description = "Ranked findings for the workspace: hotspots, function hotspots, hidden coupling, knowledge loss, bus factor, coordination bottlenecks, defect magnets, bloated Angular components."
+    )]
     async fn findings(&self, Parameters(a): Parameters<FindingsArgs>) -> Result<CallToolResult, ErrorData> {
         self.with_engine(move |engine| {
             let scope = Scope { repo: a.repo, ..Default::default() };

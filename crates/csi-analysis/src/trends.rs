@@ -38,7 +38,12 @@ pub fn classify(points: &[TrendPoint], now: i64) -> Option<Trend> {
     } else {
         "stable"
     };
-    Some(Trend { direction: direction.into(), change: (change * 1000.0).round() / 1000.0, refactored, points: recent.len() })
+    Some(Trend {
+        direction: direction.into(),
+        change: (change * 1000.0).round() / 1000.0,
+        refactored,
+        points: recent.len(),
+    })
 }
 
 /// Ensure sampled trend points exist for `file`. Returns the number of new points.
@@ -74,7 +79,9 @@ pub fn update(db: &Db, ds: &Dataset, file: u32, cat: &mut CatFile) -> Result<usi
             Ok(p) => p,
             Err(_) => continue,
         };
-        if let Some((blob, _)) = metrics_for(db, cat, &format!("{}:{}", c.sha, path), &path, ds.cfg.analysis.max_file_bytes)? {
+        if let Some((blob, _)) =
+            metrics_for(db, cat, &format!("{}:{}", c.sha, path), &path, ds.cfg.analysis.max_file_bytes)?
+        {
             db.conn.execute(
                 "INSERT OR IGNORE INTO trend_points(file_id, commit_id, blob) VALUES (?1, ?2, ?3)",
                 params![f.db_id, c.db_id, blob],

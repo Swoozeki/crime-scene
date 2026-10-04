@@ -46,7 +46,10 @@ fn angular_nx_and_federation() {
 fn angular_json_single_app_repo_is_mfe() {
     let arch = run(
         &[
-            ("angular.json", r#"{"projects":{"orders-mfe":{"root":"","sourceRoot":"src","projectType":"application"}}}"#),
+            (
+                "angular.json",
+                r#"{"projects":{"orders-mfe":{"root":"","sourceRoot":"src","projectType":"application"}}}"#,
+            ),
             ("federation.config.js", "module.exports = withNativeFederation({ exposes: {'./Routes': ''} })"),
             ("src/app/orders/orders.component.ts", ""),
         ],
@@ -83,12 +86,8 @@ fn laravel_layers() {
 #[test]
 fn manual_units_win() {
     let arch = RepoArch::default();
-    let manual = vec![UnitConfig {
-        name: "payments".into(),
-        repo: None,
-        glob: "src/app/pay*/**".into(),
-        kind: "mfe".into(),
-    }];
+    let manual =
+        vec![UnitConfig { name: "payments".into(), repo: None, glob: "src/app/pay*/**".into(), kind: "mfe".into() }];
     let idx = UnitIndex::new(&arch, &manual, "r", None);
     assert_eq!(idx.resolve("src/app/payments/x.ts"), ("payments".into(), "mfe".into()));
 }

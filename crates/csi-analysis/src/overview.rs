@@ -68,8 +68,9 @@ pub fn overview(ds: &Dataset) -> Overview {
             units: ds.units.iter().filter(|u| u.repo == ri as u32).count(),
         })
         .collect();
-    let used_authors: Vec<u32> =
-        (0..ds.authors.len() as u32).filter(|&a| ds.authors[a as usize].commits > 0 && !ds.authors[a as usize].is_bot).collect();
+    let used_authors: Vec<u32> = (0..ds.authors.len() as u32)
+        .filter(|&a| ds.authors[a as usize].commits > 0 && !ds.authors[a as usize].is_bot)
+        .collect();
     let all = Scope::default();
     let own_repo = ownership(ds, Level::Repo, &all);
     let total_loss = if own_repo.is_empty() {
@@ -173,7 +174,11 @@ pub fn hotspot_tree(ds: &Dataset, scope: &Scope) -> TreeNode {
                 // collapse single-child directory chains
                 if children.len() == 1 && !children[0].children.is_empty() && children[0].key.is_none() {
                     let only = children.pop().unwrap();
-                    return TreeNode { name: format!("{name}/{}", only.name), children: only.children, ..Default::default() };
+                    return TreeNode {
+                        name: format!("{name}/{}", only.name),
+                        children: only.children,
+                        ..Default::default()
+                    };
                 }
                 TreeNode { name, children, ..Default::default() }
             })
@@ -188,11 +193,8 @@ pub fn hotspot_tree(ds: &Dataset, scope: &Scope) -> TreeNode {
         let rel = e.key.strip_prefix(&unit.root).map(|s| s.trim_start_matches('/')).unwrap_or(&e.key);
         let mut parts: Vec<&str> = rel.split('/').collect();
         parts.pop();
-        let mut d = repos
-            .entry(ds.repos[e.repo as usize].name.clone())
-            .or_default()
-            .entry(unit.name.clone())
-            .or_default();
+        let mut d =
+            repos.entry(ds.repos[e.repo as usize].name.clone()).or_default().entry(unit.name.clone()).or_default();
         for p in parts {
             d = d.dirs.entry(p.to_string()).or_default();
         }
@@ -220,7 +222,12 @@ pub fn hotspot_tree(ds: &Dataset, scope: &Scope) -> TreeNode {
                 kind: Some("repo".into()),
                 children: units
                     .into_iter()
-                    .map(|(u, d)| TreeNode { name: u, kind: Some("unit".into()), children: into_nodes(d), ..Default::default() })
+                    .map(|(u, d)| TreeNode {
+                        name: u,
+                        kind: Some("unit".into()),
+                        children: into_nodes(d),
+                        ..Default::default()
+                    })
                     .collect(),
                 ..Default::default()
             })

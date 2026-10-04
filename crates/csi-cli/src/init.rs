@@ -29,7 +29,13 @@ pub fn run(dir: &Path, force: bool) -> Result<()> {
     }
     s.push_str(TEMPLATE);
     std::fs::write(&target, s)?;
-    println!("{} wrote {} with {} repo{}", c::green("✓"), target.display(), repos.len(), if repos.len() == 1 { "" } else { "s" });
+    println!(
+        "{} wrote {} with {} repo{}",
+        c::green("✓"),
+        target.display(),
+        repos.len(),
+        if repos.len() == 1 { "" } else { "s" }
+    );
     for r in &repos {
         println!("  {}", c::dim(&r.display().to_string()));
     }

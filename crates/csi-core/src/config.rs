@@ -115,14 +115,9 @@ pub struct ExcludeConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[derive(Default)]
 pub struct PatternConfig {
     pub pattern: String,
-}
-
-impl Default for PatternConfig {
-    fn default() -> Self {
-        Self { pattern: String::new() }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,15 +197,9 @@ impl Default for Config {
 impl Config {
     /// Load an explicit config file.
     pub fn load(path: &Path) -> Result<Self> {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
-        let mut cfg: Config =
-            toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
-        let root = path
-            .canonicalize()?
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_default();
+        let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+        let mut cfg: Config = toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        let root = path.canonicalize()?.parent().map(Path::to_path_buf).unwrap_or_default();
         if cfg.workspace.name.is_empty() {
             cfg.workspace.name = dir_name(&root);
         }

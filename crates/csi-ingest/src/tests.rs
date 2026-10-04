@@ -34,10 +34,15 @@ fn ingests_renames_incrementally() {
     assert_eq!(s.new_commits, 0);
     assert_eq!(s.tree.len(), 1);
 
-    repo.commit("Raj <raj@x.com>", 10.0, "edit", &[
-        Op::Write("src/shop/cart.ts", "export function f(x: number) { if (x) { return 1; } return 2; }\n"),
-        Op::Write("src/old.ts", "x\n"),
-    ]);
+    repo.commit(
+        "Raj <raj@x.com>",
+        10.0,
+        "edit",
+        &[
+            Op::Write("src/shop/cart.ts", "export function f(x: number) { if (x) { return 1; } return 2; }\n"),
+            Op::Write("src/old.ts", "x\n"),
+        ],
+    );
     repo.commit("Raj <raj@x.com>", 5.0, "delete", &[Op::Delete("src/old.ts")]);
     let s = ingest_repo(&db, &cfg, &cfg.repos[0], false, &noop).unwrap();
     assert_eq!(s.new_commits, 2);

@@ -32,11 +32,7 @@ pub fn analyze_tree(db: &Db, cfg: &Config, cat: &mut CatFile, tree: &[TreeEntry]
     for chunk in missing.chunks(CHUNK) {
         let mut contents = Vec::with_capacity(chunk.len());
         for e in chunk {
-            let data = if e.size as usize > max * 4 {
-                None
-            } else {
-                cat.get(&e.blob)?.map(|(_, d)| d)
-            };
+            let data = if e.size as usize > max * 4 { None } else { cat.get(&e.blob)?.map(|(_, d)| d) };
             contents.push((e, data));
         }
         let results: Vec<(&str, Option<FileMetrics>, bool)> = contents
@@ -91,11 +87,18 @@ fn store(conn: &rusqlite::Connection, blob: &str, m: Option<&FileMetrics>, too_l
 }
 
 /// Metrics for an object (`sha` or `rev:path`), using and filling the blob cache.
-pub fn metrics_for(db: &Db, cat: &mut CatFile, object: &str, path: &str, max_bytes: usize) -> Result<Option<(String, FileMetrics)>> {
-    if object.len() == 40 && !object.contains(':') {
-        if let Some(m) = load_metrics(db, object)? {
-            return Ok(Some((object.to_string(), m)));
-        }
+pub fn metrics_for(
+    db: &Db,
+    cat: &mut CatFile,
+    object: &str,
+    path: &str,
+    max_bytes: usize,
+) -> Result<Option<(String, FileMetrics)>> {
+    if object.len() == 40
+        && !object.contains(':')
+        && let Some(m) = load_metrics(db, object)?
+    {
+        return Ok(Some((object.to_string(), m)));
     }
     let Some((sha, data)) = cat.get(object)? else { return Ok(None) };
     if let Some(m) = load_metrics(db, &sha)? {

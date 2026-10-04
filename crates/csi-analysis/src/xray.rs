@@ -42,7 +42,8 @@ pub fn update(db: &Db, ds: &Dataset, file: u32, cat: &mut CatFile) -> Result<usi
         cmd.arg(format!("--since={since} ago"));
     }
     cmd.arg(&head).arg("--").arg(&f.path);
-    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().context("git log -p")?;
+    let mut child =
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().context("git log -p")?;
     let mut reader = BufReader::new(child.stdout.take().unwrap());
     let max = ds.cfg.analysis.max_file_bytes;
 
@@ -73,10 +74,10 @@ pub fn update(db: &Db, ds: &Dataset, file: u32, cat: &mut CatFile) -> Result<usi
                     old_blob = o.to_string();
                     new_blob = rest.split_whitespace().next().unwrap_or("").to_string();
                 }
-            } else if l.starts_with("@@ ") {
-                if let Some(h) = parse_hunk(l) {
-                    hunks.push(h);
-                }
+            } else if l.starts_with("@@ ")
+                && let Some(h) = parse_hunk(l)
+            {
+                hunks.push(h);
             }
         }
         let fns = |blob: &str, cat: &mut CatFile| -> Result<Vec<Function>> {
@@ -175,10 +176,12 @@ pub fn xray(ds: &Dataset, db: &Db, file: u32) -> Result<XRay> {
         None => vec![],
     };
     let commit_idx: HashMap<i64, u32> = f.commits.iter().map(|&c| (ds.commits[c as usize].db_id, c)).collect();
-    let mut st = db.conn.prepare_cached("SELECT commit_id, fn, added, deleted FROM function_changes WHERE file_id=?1")?;
+    let mut st =
+        db.conn.prepare_cached("SELECT commit_id, fn, added, deleted FROM function_changes WHERE file_id=?1")?;
     let rows: Vec<(i64, String, u32, u32)> =
         st.query_map([f.db_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<Result<_, _>>()?;
-    let analyzed: u32 = db.conn.query_row("SELECT count(*) FROM xray_done WHERE file_id=?1", [f.db_id], |r| r.get(0))?;
+    let analyzed: u32 =
+        db.conn.query_row("SELECT count(*) FROM xray_done WHERE file_id=?1", [f.db_id], |r| r.get(0))?;
 
     #[derive(Default)]
     struct Acc {

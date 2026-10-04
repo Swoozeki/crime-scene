@@ -40,22 +40,35 @@ fn world() -> World {
     let api = FixtureRepo::at(&tmp.path().join("api"));
 
     // legacy code by Bob, who left over a year ago
-    shop.commit(BOB, 600.0, "initial", &[
-        Op::Write("src/app/legacy/legacy.ts", &ts_with_branches("legacy", 30, 0)),
-        Op::Write("src/app/util/util.ts", "export const u = 1;\n"),
-        Op::Write("src/app/cart/cart.component.ts", &cart_ts(5)),
-        Op::Write("src/app/cart/cart.component.html", "<div>@if (a) { <p>x</p> }</div>\n"),
-        Op::Write("src/app/pricing/pricing.service.ts", &ts_with_branches("price", 3, 0)),
-    ]);
+    shop.commit(
+        BOB,
+        600.0,
+        "initial",
+        &[
+            Op::Write("src/app/legacy/legacy.ts", &ts_with_branches("legacy", 30, 0)),
+            Op::Write("src/app/util/util.ts", "export const u = 1;\n"),
+            Op::Write("src/app/cart/cart.component.ts", &cart_ts(5)),
+            Op::Write("src/app/cart/cart.component.html", "<div>@if (a) { <p>x</p> }</div>\n"),
+            Op::Write("src/app/pricing/pricing.service.ts", &ts_with_branches("price", 3, 0)),
+        ],
+    );
     for i in 0..6 {
-        shop.commit(BOB, 590.0 - i as f64 * 20.0, "tweak legacy", &[Op::Write(
-            "src/app/legacy/legacy.ts",
-            &ts_with_branches("legacy", 30 + i, i),
-        )]);
+        shop.commit(
+            BOB,
+            590.0 - i as f64 * 20.0,
+            "tweak legacy",
+            &[Op::Write("src/app/legacy/legacy.ts", &ts_with_branches("legacy", 30 + i, i))],
+        );
     }
     // the cart: changes a lot, recently, mostly together with pricing (cross-unit coupling)
     for i in 0..14 {
-        let author = if i % 4 == 0 { ALICE_OLD } else if i % 3 == 0 { CARL } else { ALICE };
+        let author = if i % 4 == 0 {
+            ALICE_OLD
+        } else if i % 3 == 0 {
+            CARL
+        } else {
+            ALICE
+        };
         let msg = format!("SHOP-{} {} cart pricing", 100 + i, if i % 3 == 0 { "fix" } else { "feat" });
         let mut ops = vec![Op::Write("src/app/cart/cart.component.ts", Box::leak(cart_ts(6 + i).into_boxed_str()))];
         if i % 7 != 6 {
@@ -73,15 +86,28 @@ fn world() -> World {
         shop.commit(author, 200.0 - i as f64 * 10.0, &msg, &ops);
         // the backend half of the same ticket
         if i % 2 == 0 {
-            api.commit(CARL, 199.5 - i as f64 * 10.0, &format!("SHOP-{} api", 100 + i), &[Op::Write(
-                "app/Http/Controllers/CartController.php",
-                Box::leak(format!("<?php\nclass CartController {{ public function show() {{ return {i}; }} }}\n").into_boxed_str()),
-            )]);
+            api.commit(
+                CARL,
+                199.5 - i as f64 * 10.0,
+                &format!("SHOP-{} api", 100 + i),
+                &[Op::Write(
+                    "app/Http/Controllers/CartController.php",
+                    Box::leak(
+                        format!("<?php\nclass CartController {{ public function show() {{ return {i}; }} }}\n")
+                            .into_boxed_str(),
+                    ),
+                )],
+            );
         }
     }
     // a mega commit and a bot commit must not create coupling or authorship
-    let many: Vec<(String, String)> = (0..70).map(|i| (format!("src/gen/f{i}.ts"), format!("export const x{i} = {i};\n"))).collect();
-    let ops: Vec<Op> = many.iter().map(|(p, c)| Op::Write(p, c)).chain([Op::Write("src/app/util/util.ts", "export const u = 2;\n")]).collect();
+    let many: Vec<(String, String)> =
+        (0..70).map(|i| (format!("src/gen/f{i}.ts"), format!("export const x{i} = {i};\n"))).collect();
+    let ops: Vec<Op> = many
+        .iter()
+        .map(|(p, c)| Op::Write(p, c))
+        .chain([Op::Write("src/app/util/util.ts", "export const u = 2;\n")])
+        .collect();
     shop.commit(CARL, 15.0, "add generated constants", &ops);
     shop.commit(BOT, 10.0, "bump deps", &[Op::Write("src/app/util/util.ts", "export const u = 3;\n")]);
 
@@ -115,7 +141,12 @@ fn end_to_end() {
 
     // entity hotspots: the cart component (ts + html grouped via templateUrl) is #1
     let ent = hotspots(&ds, Level::Entity, &Scope::default());
-    assert_eq!(ent[0].name, "src/app/cart/cart.component", "{:?}", ent.iter().take(3).map(|h| &h.name).collect::<Vec<_>>());
+    assert_eq!(
+        ent[0].name,
+        "src/app/cart/cart.component",
+        "{:?}",
+        ent.iter().take(3).map(|h| &h.name).collect::<Vec<_>>()
+    );
     assert_eq!(ent[0].files, 2); // ts + html grouped via templateUrl
     let cart_entity = &ds.entities[ent[0].key as usize];
     assert_eq!(cart_entity.files.len(), 2);
@@ -126,7 +157,10 @@ fn end_to_end() {
     let c = coupling(&ds, &q, &Scope::default());
     let pair = c
         .iter()
-        .find(|c| c.a_name.contains("cart.component") && c.b_name.contains("pricing") || c.b_name.contains("cart.component") && c.a_name.contains("pricing"))
+        .find(|c| {
+            c.a_name.contains("cart.component") && c.b_name.contains("pricing")
+                || c.b_name.contains("cart.component") && c.a_name.contains("pricing")
+        })
         .expect("cart/pricing coupling");
     assert_eq!(pair.support, 12); // 13 co-changes minus iteration 0, where pricing content is unchanged
     assert!(pair.cross_unit);
@@ -137,7 +171,10 @@ fn end_to_end() {
     // ticket coupling crosses repos
     let tq = CouplingQuery { level: Level::Entity, by: By::Ticket, min_lift: Some(1.0), ..Default::default() };
     let tc = coupling(&ds, &tq, &Scope::default());
-    assert!(tc.iter().any(|c| c.cross_repo && (c.a_name.contains("CartController") || c.b_name.contains("CartController"))), "{tc:#?}");
+    assert!(
+        tc.iter().any(|c| c.cross_repo && (c.a_name.contains("CartController") || c.b_name.contains("CartController"))),
+        "{tc:#?}"
+    );
 
     // knowledge loss on Bob's legacy code
     let own = ownership(&ds, Level::Entity, &Scope::default());
@@ -179,7 +216,17 @@ fn end_to_end() {
     // diff: change the cart without pricing on a branch → pricing flagged as missed
     w.shop.git(&["checkout", "-q", "-b", "feature"]);
     w.shop.commit(ALICE, 1.0, "SHOP-999 tweak cart", &[Op::Write("src/app/cart/cart.component.ts", &cart_ts(25))]);
-    let r = diff(&ds, &db, &DiffRequest { repo: Some("shop".into()), base: Some("main".into()), head: Some("feature".into()), ..Default::default() }).unwrap();
+    let r = diff(
+        &ds,
+        &db,
+        &DiffRequest {
+            repo: Some("shop".into()),
+            base: Some("main".into()),
+            head: Some("feature".into()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(r.files.len(), 1);
     assert!(r.missed.iter().any(|m| m.path.contains("pricing")), "{:#?}", r.missed);
     assert!(r.files[0].functions.iter().any(|f| f.name == "CartComponent.total" && f.cc_after > f.cc_before));

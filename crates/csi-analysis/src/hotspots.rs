@@ -133,9 +133,8 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
             let a = &acc[k as usize];
             let loc: u32 = fs.iter().map(|&f| ds.files[f as usize].loc).sum();
             let complexity: f64 = fs.iter().map(|&f| ds.files[f as usize].complexity).sum();
-            let worst = fs
-                .iter()
-                .min_by(|&&x, &&y| ds.files[x as usize].health().total_cmp(&ds.files[y as usize].health()));
+            let worst =
+                fs.iter().min_by(|&&x, &&y| ds.files[x as usize].health().total_cmp(&ds.files[y as usize].health()));
             let (health, reasons) = worst
                 .map(|&f| (ds.files[f as usize].health(), ds.files[f as usize].summary.health_reasons.clone()))
                 .unwrap_or((10.0, vec![]));
@@ -144,11 +143,11 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
             let (display, kind, lang) = match level {
                 Level::File => {
                     let f = &ds.files[k as usize];
-                    (f.path.rsplit('/').next().unwrap_or(&f.path).to_string(), "file".to_string(), Some(f.lang.as_str().to_string()))
+                    (short_name(&f.path), "file".to_string(), Some(f.lang.as_str().to_string()))
                 }
                 Level::Entity => {
                     let e = &ds.entities[k as usize];
-                    (e.name.clone(), e.kind.clone(), None)
+                    (short_name(&e.key), e.kind.clone(), None)
                 }
                 Level::Unit => (ds.units[k as usize].name.clone(), ds.units[k as usize].kind.clone(), None),
                 Level::Repo => (ds.repos[k as usize].name.clone(), "repo".into(), None),
@@ -208,7 +207,12 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
         Level::Unit | Level::Repo => {
             let weighted: Vec<f64> = rows
                 .iter()
-                .map(|r| files_of(r.key).iter().map(|&f| ds.files[f as usize].complexity * ds.files[f as usize].lang.weight()).sum())
+                .map(|r| {
+                    files_of(r.key)
+                        .iter()
+                        .map(|&f| ds.files[f as usize].complexity * ds.files[f as usize].lang.weight())
+                        .sum()
+                })
                 .collect();
             let pr = percentile_ranks(&weighted);
             for (r, p) in rows.iter_mut().zip(pr) {
@@ -240,4 +244,48 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
 /// Rank lookup: key -> hotspot row index.
 pub fn index(rows: &[Hotspot]) -> HashMap<u32, usize> {
     rows.iter().enumerate().map(|(i, r)| (r.key, i)).collect()
+}
+
+/// Last path segment, prefixed with its directory when the name alone is too generic to recognize.
+pub fn short_name(path: &str) -> String {
+    let mut parts = path.rsplit('/');
+    let name = parts.next().unwrap_or(path);
+    let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
+    const GENERIC: &[&str] = &[
+        "index",
+        "util",
+        "utils",
+        "types",
+        "type",
+        "helpers",
+        "helper",
+        "main",
+        "api",
+        "constants",
+        "model",
+        "models",
+        "node",
+        "common",
+        "shared",
+        "config",
+        "mod",
+        "lib",
+        "core",
+        "base",
+        "handler",
+        "service",
+        "routes",
+        "module",
+        "component",
+        "app",
+        "init",
+        "__init__",
+        "default",
+        "interfaces",
+        "public_api",
+    ];
+    match parts.next() {
+        Some(dir) if GENERIC.contains(&stem.as_str()) => format!("{dir}/{name}"),
+        _ => name.to_string(),
+    }
 }

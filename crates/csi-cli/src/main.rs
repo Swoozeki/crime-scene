@@ -20,7 +20,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 #[derive(Parser)]
-#[command(name = "csi", version, about = "Crime Scene Investigator — find the code that matters, from your git history")]
+#[command(
+    name = "csi",
+    version,
+    about = "Crime Scene Investigator — find the code that matters, from your git history"
+)]
 struct Cli {
     /// Path to crimescene.toml (default: search upwards from the current directory)
     #[arg(long, global = true)]
@@ -138,9 +142,17 @@ enum Cmd {
         scope: ScopeArgs,
     },
     /// Function-level hotspots inside a file
-    Xray { path: String, #[arg(long)] repo: Option<String> },
+    Xray {
+        path: String,
+        #[arg(long)]
+        repo: Option<String>,
+    },
     /// Complexity trend of a file
-    Trend { path: String, #[arg(long)] repo: Option<String> },
+    Trend {
+        path: String,
+        #[arg(long)]
+        repo: Option<String>,
+    },
     /// Ownership, knowledge loss and experts for a path, unit or the workspace
     Owners {
         /// File or directory (default: whole workspace)
@@ -153,9 +165,17 @@ enum Cmd {
         scope: ScopeArgs,
     },
     /// Code health of a file
-    Health { path: String, #[arg(long)] repo: Option<String> },
+    Health {
+        path: String,
+        #[arg(long)]
+        repo: Option<String>,
+    },
     /// Everything about one file or entity
-    Show { path: String, #[arg(long)] repo: Option<String> },
+    Show {
+        path: String,
+        #[arg(long)]
+        repo: Option<String>,
+    },
     /// Risk report for a branch/PR (`base..head`) or a ticket across repos
     Diff {
         /// `base..head`, `base`, or nothing (merge-base with the analyzed branch .. HEAD)
@@ -251,7 +271,11 @@ fn run(cli: Cli) -> Result<()> {
                     o.commits, o.authors, o.active_authors, o.files, o.units, r.xray_commits, r.seconds
                 ))
             );
-            println!("Next: {} for ranked findings, {} for the web app", c::bold("csi report"), c::bold("csi serve --open"));
+            println!(
+                "Next: {} for ranked findings, {} for the web app",
+                c::bold("csi report"),
+                c::bold("csi serve --open")
+            );
             Ok(())
         }
         Cmd::Report { top, kind, scope } => {
@@ -264,9 +288,19 @@ fn run(cli: Cli) -> Result<()> {
             match cli.format {
                 Fmt::Json => out::json(&f),
                 Fmt::Csv => {
-                    out::csv(&["id", "severity", "kind", "repo", "subject", "title"], f.iter().map(|x| {
-                        vec![x.id.clone(), x.severity.to_string(), x.kind.clone(), x.repo.clone(), x.subject.clone(), x.title.clone()]
-                    }));
+                    out::csv(
+                        &["id", "severity", "kind", "repo", "subject", "title"],
+                        f.iter().map(|x| {
+                            vec![
+                                x.id.clone(),
+                                x.severity.to_string(),
+                                x.kind.clone(),
+                                x.repo.clone(),
+                                x.subject.clone(),
+                                x.title.clone(),
+                            ]
+                        }),
+                    );
                     Ok(())
                 }
                 _ => {
@@ -288,8 +322,20 @@ fn run(cli: Cli) -> Result<()> {
                     }
                     for x in &f {
                         let sev = format!("{:>3}", x.severity);
-                        let sev = if x.severity >= 70 { c::red(&sev) } else if x.severity >= 45 { c::yellow(&sev) } else { c::dim(&sev) };
-                        println!("{} {}  {} {}", sev, c::dim(&x.id), c::yellow(&format!("{}:", x.kind_label)), c::bold(&x.title));
+                        let sev = if x.severity >= 70 {
+                            c::red(&sev)
+                        } else if x.severity >= 45 {
+                            c::yellow(&sev)
+                        } else {
+                            c::dim(&sev)
+                        };
+                        println!(
+                            "{} {}  {} {}",
+                            sev,
+                            c::dim(&x.id),
+                            c::yellow(&format!("{}:", x.kind_label)),
+                            c::bold(&x.title)
+                        );
                         let loc = match &x.unit {
                             Some(u) => format!("{u} · {}", x.subject),
                             None => x.subject.clone(),
@@ -310,7 +356,19 @@ fn run(cli: Cli) -> Result<()> {
                 Fmt::Json => out::json(&rows),
                 Fmt::Csv => {
                     out::csv(
-                        &["rank", "score", "name", "repo", "revisions", "rev_w", "complexity", "loc", "health", "main_dev", "trend"],
+                        &[
+                            "rank",
+                            "score",
+                            "name",
+                            "repo",
+                            "revisions",
+                            "rev_w",
+                            "complexity",
+                            "loc",
+                            "health",
+                            "main_dev",
+                            "trend",
+                        ],
                         rows.iter().map(|h| {
                             vec![
                                 h.rank.to_string(),
@@ -331,7 +389,18 @@ fn run(cli: Cli) -> Result<()> {
                 }
                 _ => {
                     let multi = engine.ds.repos.len() > 1;
-                    let mut t = out::table(&["#", "score", "", "name", "changes", "complexity", "loc", "health", "main dev", "trend"]);
+                    let mut t = out::table(&[
+                        "#",
+                        "score",
+                        "",
+                        "name",
+                        "changes",
+                        "complexity",
+                        "loc",
+                        "health",
+                        "main dev",
+                        "trend",
+                    ]);
                     for h in &rows {
                         let name = if multi { format!("{}:{}", h.repo, h.name) } else { h.name.clone() };
                         t.add_row(vec![
@@ -343,12 +412,20 @@ fn run(cli: Cli) -> Result<()> {
                             format!("{:.0}", h.complexity),
                             h.loc.to_string(),
                             health_cell(h.health),
-                            h.main_dev.clone().map(|d| format!("{d} {:.0}%", h.main_dev_share * 100.0)).unwrap_or_default(),
+                            h.main_dev
+                                .clone()
+                                .map(|d| format!("{d} {:.0}%", h.main_dev_share * 100.0))
+                                .unwrap_or_default(),
                             h.trend.as_ref().map(|t| out::trend_cell(&t.direction)).unwrap_or_default(),
                         ]);
                     }
                     println!("{t}");
-                    println!("{}", c::dim("changes = commits (recency-weighted) · score = change frequency × complexity percentile"));
+                    println!(
+                        "{}",
+                        c::dim(
+                            "changes = commits (recency-weighted) · score = change frequency × complexity percentile"
+                        )
+                    );
                     Ok(())
                 }
             }
@@ -358,30 +435,27 @@ fn run(cli: Cli) -> Result<()> {
             let by = By::parse(by).context("--by must be commit or ticket")?;
             let level: Level = (*level).into();
             let focus = focus.as_ref().map(|f| resolve_name(&engine, f, level));
-            let q = CouplingQuery {
-                level,
-                by,
-                focus,
-                min_support: *min_support,
-                cross_only: *cross,
-                ..Default::default()
-            };
+            let q =
+                CouplingQuery { level, by, focus, min_support: *min_support, cross_only: *cross, ..Default::default() };
             let rows: Vec<_> = coupling(&engine.ds, &q, &scope.scope()).into_iter().take(*limit).collect();
             match cli.format {
                 Fmt::Json => out::json(&rows),
                 Fmt::Csv => {
-                    out::csv(&["a", "b", "support", "conf_ab", "conf_ba", "lift", "cross_unit", "cross_repo"], rows.iter().map(|r| {
-                        vec![
-                            r.a_name.clone(),
-                            r.b_name.clone(),
-                            r.support.to_string(),
-                            r.conf_ab.to_string(),
-                            r.conf_ba.to_string(),
-                            r.lift.to_string(),
-                            r.cross_unit.to_string(),
-                            r.cross_repo.to_string(),
-                        ]
-                    }));
+                    out::csv(
+                        &["a", "b", "support", "conf_ab", "conf_ba", "lift", "cross_unit", "cross_repo"],
+                        rows.iter().map(|r| {
+                            vec![
+                                r.a_name.clone(),
+                                r.b_name.clone(),
+                                r.support.to_string(),
+                                r.conf_ab.to_string(),
+                                r.conf_ba.to_string(),
+                                r.lift.to_string(),
+                                r.cross_unit.to_string(),
+                                r.cross_repo.to_string(),
+                            ]
+                        }),
+                    );
                     Ok(())
                 }
                 _ => {
@@ -410,9 +484,17 @@ fn run(cli: Cli) -> Result<()> {
                     }
                     println!("{t}");
                     if rows.is_empty() {
-                        println!("{}", c::dim("No coupling above the thresholds. Lower --min-support or try --by ticket."));
+                        println!(
+                            "{}",
+                            c::dim("No coupling above the thresholds. Lower --min-support or try --by ticket.")
+                        );
                     } else {
-                        println!("{}", c::dim("A→B = share of A's changes that also changed B · lift > 1 = more often than chance"));
+                        println!(
+                            "{}",
+                            c::dim(
+                                "A→B = share of A's changes that also changed B · lift > 1 = more often than chance"
+                            )
+                        );
                     }
                     Ok(())
                 }
@@ -426,8 +508,13 @@ fn run(cli: Cli) -> Result<()> {
             if cli.format == Fmt::Json {
                 return out::json(&x);
             }
-            println!("{}  {}", c::bold(&format!("X-ray {}", x.path)), c::dim(&format!("{} commits analyzed", x.analyzed_commits)));
-            let mut t = out::table(&["score", "", "function", "changes", "cc", "nesting", "lines", "authors", "last change"]);
+            println!(
+                "{}  {}",
+                c::bold(&format!("X-ray {}", x.path)),
+                c::dim(&format!("{} commits analyzed", x.analyzed_commits))
+            );
+            let mut t =
+                out::table(&["score", "", "function", "changes", "cc", "nesting", "lines", "authors", "last change"]);
             for func in x.functions.iter().take(30) {
                 t.add_row(vec![
                     format!("{:.2}", func.score),
@@ -445,7 +532,12 @@ fn run(cli: Cli) -> Result<()> {
             if !x.coupling.is_empty() {
                 println!("\n{}", c::bold("Functions that change together"));
                 for p in x.coupling.iter().take(10) {
-                    println!("  {} ↔ {}  {}", p.a, p.b, c::dim(&format!("{}× · {:.0}%", p.support, p.confidence * 100.0)));
+                    println!(
+                        "  {} ↔ {}  {}",
+                        p.a,
+                        p.b,
+                        c::dim(&format!("{}× · {:.0}%", p.support, p.confidence * 100.0))
+                    );
                 }
             }
             Ok(())
@@ -457,7 +549,9 @@ fn run(cli: Cli) -> Result<()> {
             let points = engine.ds.files[f as usize].trend.clone();
             let cls = trends::classify(&points, engine.ds.now);
             if cli.format == Fmt::Json {
-                return out::json(&serde_json::json!({"path": engine.ds.files[f as usize].path, "points": points, "trend": cls}));
+                return out::json(
+                    &serde_json::json!({"path": engine.ds.files[f as usize].path, "points": points, "trend": cls}),
+                );
             }
             println!("{}", c::bold(&format!("Complexity trend {}", engine.ds.files[f as usize].path)));
             if points.is_empty() {
@@ -476,7 +570,12 @@ fn run(cli: Cli) -> Result<()> {
             }
             let mut t = out::table(&["date", "complexity", "loc", "max fn cc"]);
             for p in &points {
-                t.add_row(vec![out::date(p.ts), format!("{:.0}", p.complexity), p.loc.to_string(), p.max_cc.to_string()]);
+                t.add_row(vec![
+                    out::date(p.ts),
+                    format!("{:.0}", p.complexity),
+                    p.loc.to_string(),
+                    p.max_cc.to_string(),
+                ]);
             }
             println!("{t}");
             Ok(())
@@ -503,15 +602,32 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
             let mut rows = ownership(ds, level, &scope);
-            rows.sort_by(|a, b| b.knowledge_loss.total_cmp(&a.knowledge_loss).then(a.bus_factor.cmp(&b.bus_factor)).then(a.name.cmp(&b.name)));
+            rows.sort_by(|a, b| {
+                b.knowledge_loss
+                    .total_cmp(&a.knowledge_loss)
+                    .then(a.bus_factor.cmp(&b.bus_factor))
+                    .then(a.name.cmp(&b.name))
+            });
             if focus_files.is_empty() {
-                focus_files = (0..ds.files.len() as u32).filter(|&f| scope.file(ds, &ds.files[f as usize]) && ds.files[f as usize].alive).collect();
+                focus_files = (0..ds.files.len() as u32)
+                    .filter(|&f| scope.file(ds, &ds.files[f as usize]) && ds.files[f as usize].alive)
+                    .collect();
             }
             let ex = experts(ds, &focus_files, &[]);
             if cli.format == Fmt::Json {
-                return out::json(&serde_json::json!({"ownership": rows.iter().take(*limit).collect::<Vec<_>>(), "experts": ex.iter().take(10).collect::<Vec<_>>()}));
+                return out::json(
+                    &serde_json::json!({"ownership": rows.iter().take(*limit).collect::<Vec<_>>(), "experts": ex.iter().take(10).collect::<Vec<_>>()}),
+                );
             }
-            let mut t = out::table(&["name", "main dev", "bus factor", "knowledge loss", "fragmentation", "active (1y)", "top authors"]);
+            let mut t = out::table(&[
+                "name",
+                "main dev",
+                "bus factor",
+                "knowledge loss",
+                "fragmentation",
+                "active (1y)",
+                "top authors",
+            ]);
             for o in rows.iter().take(*limit) {
                 let top: Vec<String> = o
                     .authors
@@ -523,7 +639,11 @@ fn run(cli: Cli) -> Result<()> {
                     o.name.clone(),
                     o.main_dev.clone().map(|d| format!("{d} {:.0}%", o.main_dev_share * 100.0)).unwrap_or_default(),
                     if o.bus_factor == 1 { c::yellow("1") } else { o.bus_factor.to_string() },
-                    if o.knowledge_loss >= 0.5 { c::red(&format!("{:.0}%", o.knowledge_loss * 100.0)) } else { format!("{:.0}%", o.knowledge_loss * 100.0) },
+                    if o.knowledge_loss >= 0.5 {
+                        c::red(&format!("{:.0}%", o.knowledge_loss * 100.0))
+                    } else {
+                        format!("{:.0}%", o.knowledge_loss * 100.0)
+                    },
                     format!("{:.2}", o.fragmentation),
                     o.recent_authors.to_string(),
                     top.join(", "),
@@ -532,7 +652,8 @@ fn run(cli: Cli) -> Result<()> {
             println!("{t}");
             println!("{}", c::dim("† = inactive author · knowledge loss = share of code written by inactive authors"));
             if !ex.is_empty() {
-                let names: Vec<String> = ex.iter().take(5).map(|e| format!("{} ({:.0}%)", e.name, e.score * 100.0)).collect();
+                let names: Vec<String> =
+                    ex.iter().take(5).map(|e| format!("{} ({:.0}%)", e.name, e.score * 100.0)).collect();
                 println!("\n{} {}", c::bold("Experts (active, recent knowledge):"), names.join(", "));
             }
             Ok(())
@@ -563,7 +684,14 @@ fn run(cli: Cli) -> Result<()> {
             if let Some(a) = &file.summary.angular {
                 println!(
                     "  {}",
-                    c::dim(&format!("angular {} · {} deps · {} inputs · {} outputs{}", a.kind, a.deps, a.inputs, a.outputs, if a.standalone { " · standalone" } else { "" }))
+                    c::dim(&format!(
+                        "angular {} · {} deps · {} inputs · {} outputs{}",
+                        a.kind,
+                        a.deps,
+                        a.inputs,
+                        a.outputs,
+                        if a.standalone { " · standalone" } else { "" }
+                    ))
                 );
             }
             let mut sorted = fns.clone();
@@ -622,10 +750,10 @@ fn run(cli: Cli) -> Result<()> {
                 Fmt::Md => print!("{}", r.to_markdown()),
                 _ => out::print_diff(&r),
             }
-            if let Some(max) = fail_above {
-                if r.risk > *max {
-                    std::process::exit(2);
-                }
+            if let Some(max) = fail_above
+                && r.risk > *max
+            {
+                std::process::exit(2);
             }
             Ok(())
         }
@@ -653,10 +781,10 @@ fn run(cli: Cli) -> Result<()> {
 fn resolve_file(engine: &Engine, path: &str, repo: Option<&str>) -> Result<u32> {
     let ds = &engine.ds;
     let abs = std::env::current_dir()?.join(path);
-    if let Ok(canon) = abs.canonicalize() {
-        if let Some(f) = ds.find_file(&canon.to_string_lossy(), repo) {
-            return Ok(f);
-        }
+    if let Ok(canon) = abs.canonicalize()
+        && let Some(f) = ds.find_file(&canon.to_string_lossy(), repo)
+    {
+        return Ok(f);
     }
     if let Some(f) = ds.find_file(path, repo) {
         return Ok(f);

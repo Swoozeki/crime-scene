@@ -88,8 +88,9 @@ pub fn detect(path: &str) -> Lang {
         "scss" => Lang::Scss,
         "css" => Lang::Css,
         "php" | "phtml" => Lang::Php,
-        "json" | "jsonc" | "yaml" | "yml" | "xml" | "toml" | "ini" | "env" | "csv" | "properties"
-        | "neon" | "lock" => Lang::Data,
+        "json" | "jsonc" | "yaml" | "yml" | "xml" | "toml" | "ini" | "env" | "csv" | "properties" | "neon" | "lock" => {
+            Lang::Data
+        }
         "md" | "mdx" | "txt" | "rst" | "adoc" => Lang::Doc,
         _ => Lang::Other,
     }
@@ -204,10 +205,7 @@ fn is_generated(text: &str, loc: u32) -> bool {
 
 /// The innermost function containing `line` (1-based).
 pub fn function_at(functions: &[Function], line: u32) -> Option<&Function> {
-    functions
-        .iter()
-        .filter(|f| f.start <= line && line <= f.end)
-        .min_by_key(|f| f.end - f.start)
+    functions.iter().filter(|f| f.start <= line && line <= f.end).min_by_key(|f| f.end - f.start)
 }
 
 /// Test, spec, story and e2e files.

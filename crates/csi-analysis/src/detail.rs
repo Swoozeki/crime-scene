@@ -109,7 +109,13 @@ pub fn detail(ds: &Dataset, db: &Db, level: Level, key: u32) -> Result<Detail> {
 
     let mut partners = vec![];
     for by in [By::Commit, By::Ticket] {
-        let q = CouplingQuery { level, by, include_expected: level == Level::File, min_lift: Some(1.0), ..Default::default() };
+        let q = CouplingQuery {
+            level,
+            by,
+            include_expected: level == Level::File,
+            min_lift: Some(1.0),
+            ..Default::default()
+        };
         for c in coupling(ds, &q, &Scope::default()) {
             let (other, conf) = if c.a == key {
                 (c.b, c.conf_ab)

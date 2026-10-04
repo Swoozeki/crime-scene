@@ -53,10 +53,10 @@ impl Scope {
     }
 
     pub fn file(&self, ds: &Dataset, f: &File) -> bool {
-        if let Some(r) = &self.repo {
-            if &ds.repos[f.repo as usize].name != r {
-                return false;
-            }
+        if let Some(r) = &self.repo
+            && &ds.repos[f.repo as usize].name != r
+        {
+            return false;
         }
         if let Some(u) = &self.unit {
             let unit = &ds.units[f.unit as usize];

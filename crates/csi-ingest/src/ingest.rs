@@ -28,7 +28,13 @@ pub struct IngestStats {
 
 pub const MAX_MESSAGE: usize = 4000;
 
-pub fn ingest_repo(db: &Db, cfg: &Config, repo: &RepoConfig, full_rescan: bool, progress: Progress) -> Result<IngestStats> {
+pub fn ingest_repo(
+    db: &Db,
+    cfg: &Config,
+    repo: &RepoConfig,
+    full_rescan: bool,
+    progress: Progress,
+) -> Result<IngestStats> {
     let path = cfg.repo_path(repo);
     if !Git::is_repo(&path) {
         bail!("repo `{}`: {} is not a git repository", repo.name, path.display());
@@ -41,11 +47,9 @@ pub fn ingest_repo(db: &Db, cfg: &Config, repo: &RepoConfig, full_rescan: bool, 
 
     let row: Option<(i64, String, String, Option<String>, String)> = db
         .conn
-        .query_row(
-            "SELECT id, path, branch, last_sha, since FROM repos WHERE name=?1",
-            [&repo.name],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
-        )
+        .query_row("SELECT id, path, branch, last_sha, since FROM repos WHERE name=?1", [&repo.name], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })
         .optional()?;
     let (repo_id, last) = match row {
         Some((id, p, b, last, s)) => {
@@ -166,7 +170,7 @@ pub fn ingest_repo(db: &Db, cfg: &Config, repo: &RepoConfig, full_rescan: bool, 
                 ])?;
             }
             n += 1;
-            if n % 5000 == 0 {
+            if n.is_multiple_of(5000) {
                 progress(&format!("{}: {} commits", repo.name, n));
             }
             Ok(())
@@ -198,18 +202,15 @@ pub fn ingest_repo(db: &Db, cfg: &Config, repo: &RepoConfig, full_rescan: bool, 
             tree.push(TreeEntry { file_id, path, blob, size });
         }
     }
-    tx.execute(
-        "UPDATE repos SET last_sha=?2, scanned_at=strftime('%s','now') WHERE id=?1",
-        params![repo_id, head],
-    )?;
+    tx.execute("UPDATE repos SET last_sha=?2, scanned_at=strftime('%s','now') WHERE id=?1", params![repo_id, head])?;
     tx.commit()?;
     Ok(IngestStats { repo_id, head, branch, new_commits: n, full, tree })
 }
 
 fn load_tree(db: &Db, repo_id: i64) -> Result<Vec<TreeEntry>> {
-    let mut st = db.conn.prepare(
-        "SELECT t.file_id, f.path, t.blob FROM tree t JOIN files f ON f.id = t.file_id WHERE t.repo_id=?1",
-    )?;
+    let mut st = db
+        .conn
+        .prepare("SELECT t.file_id, f.path, t.blob FROM tree t JOIN files f ON f.id = t.file_id WHERE t.repo_id=?1")?;
     let rows = st
         .query_map([repo_id], |r| Ok(TreeEntry { file_id: r.get(0)?, path: r.get(1)?, blob: r.get(2)?, size: 0 }))?
         .collect::<Result<_, _>>()?;

@@ -44,10 +44,10 @@ pub fn scan(cfg: &Config, db: &Db, opts: &ScanOptions, progress: Progress) -> Re
     if cfg.repos.is_empty() {
         bail!("the workspace has no repositories; add [[repo]] entries to crimescene.toml");
     }
-    if let Some(r) = &opts.repo {
-        if !cfg.repos.iter().any(|x| &x.name == r) {
-            bail!("unknown repo `{r}`");
-        }
+    if let Some(r) = &opts.repo
+        && !cfg.repos.iter().any(|x| &x.name == r)
+    {
+        bail!("unknown repo `{r}`");
     }
     let mut reports = vec![];
     for rc in cfg.repos.iter().filter(|r| opts.repo.as_ref().is_none_or(|n| n == &r.name)) {
@@ -104,8 +104,8 @@ pub fn scan(cfg: &Config, db: &Db, opts: &ScanOptions, progress: Progress) -> Re
         let mut cats: HashMap<u32, CatFile> = HashMap::new();
         for f in top {
             let repo = ds.files[f as usize].repo;
-            if !cats.contains_key(&repo) {
-                cats.insert(repo, CatFile::new(&Git::new(&ds.repos[repo as usize].path))?);
+            if let std::collections::hash_map::Entry::Vacant(e) = cats.entry(repo) {
+                e.insert(CatFile::new(&Git::new(&ds.repos[repo as usize].path))?);
             }
             let cat = cats.get_mut(&repo).unwrap();
             xc += xray::update(db, &ds, f, cat)?;
@@ -125,11 +125,8 @@ pub fn stale_repos(cfg: &Config, db: &Db) -> Vec<String> {
     cfg.repos
         .iter()
         .filter(|rc| {
-            let last: Option<String> = db
-                .conn
-                .query_row("SELECT last_sha FROM repos WHERE name=?1", [&rc.name], |r| r.get(0))
-                .ok()
-                .flatten();
+            let last: Option<String> =
+                db.conn.query_row("SELECT last_sha FROM repos WHERE name=?1", [&rc.name], |r| r.get(0)).ok().flatten();
             let git = Git::new(cfg.repo_path(rc));
             let head = git.resolve_branch(rc.branch.as_deref()).and_then(|b| git.rev_parse(&b)).ok();
             last.is_none() || head.is_none() || last != head
