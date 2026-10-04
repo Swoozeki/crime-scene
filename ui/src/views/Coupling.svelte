@@ -6,7 +6,8 @@
 
   const level = $derived(route.query.level ?? 'entity');
   const by = $derived(route.query.by ?? 'commit');
-  const rows = $derived(api<any[]>('coupling', { by, level }));
+  const tests = $derived(route.query.tests === '1');
+  const rows = $derived(api<any[]>('coupling', { by, level, ...(tests ? { tests: 'true' } : {}) }));
   let cross = $state(route.query.cross === '1');
   let q = $state(route.query.q ?? '');
   let limit = $state(200);
@@ -40,6 +41,7 @@
     <button class:on={by === 'ticket'} onclick={() => setQuery({ by: 'ticket' })}>By ticket</button>
   </div>
   <label class="row"><input type="checkbox" bind:checked={cross} onchange={() => setQuery({ cross: cross ? '1' : '' })} /> Only across unit / repo boundaries</label>
+  <label class="row"><input type="checkbox" checked={tests} onchange={(e) => setQuery({ tests: e.currentTarget.checked ? '1' : '' })} /> Include tests</label>
   <input type="search" placeholder="Filter…" bind:value={q} oninput={() => setQuery({ q })} />
 </div>
 

@@ -134,6 +134,9 @@ enum Cmd {
         /// Only pairs crossing unit or repo boundaries
         #[arg(long)]
         cross: bool,
+        /// Include pairs where one side is test code
+        #[arg(long)]
+        tests: bool,
         #[arg(long)]
         min_support: Option<u32>,
         #[arg(long, short = 'n', default_value_t = 30)]
@@ -430,13 +433,20 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Cmd::Coupling { focus, level, by, cross, min_support, limit, scope } => {
+        Cmd::Coupling { focus, level, by, cross, tests, min_support, limit, scope } => {
             let engine = open_engine(&cli, true)?;
             let by = By::parse(by).context("--by must be commit or ticket")?;
             let level: Level = (*level).into();
             let focus = focus.as_ref().map(|f| resolve_name(&engine, f, level));
-            let q =
-                CouplingQuery { level, by, focus, min_support: *min_support, cross_only: *cross, ..Default::default() };
+            let q = CouplingQuery {
+                level,
+                by,
+                focus,
+                min_support: *min_support,
+                cross_only: *cross,
+                include_tests: *tests,
+                ..Default::default()
+            };
             let rows: Vec<_> = coupling(&engine.ds, &q, &scope.scope()).into_iter().take(*limit).collect();
             match cli.format {
                 Fmt::Json => out::json(&rows),
@@ -602,12 +612,7 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
             let mut rows = ownership(ds, level, &scope);
-            rows.sort_by(|a, b| {
-                b.knowledge_loss
-                    .total_cmp(&a.knowledge_loss)
-                    .then(a.bus_factor.cmp(&b.bus_factor))
-                    .then(a.name.cmp(&b.name))
-            });
+            csi_analysis::social::sort_by_importance(ds, level, &scope, &mut rows);
             if focus_files.is_empty() {
                 focus_files = (0..ds.files.len() as u32)
                     .filter(|&f| scope.file(ds, &ds.files[f as usize]) && ds.files[f as usize].alive)

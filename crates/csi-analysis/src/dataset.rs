@@ -606,6 +606,15 @@ impl Dataset {
         }
     }
 
+    /// A key made only of test files (never true for units and repos).
+    pub fn key_is_test(&self, key: u32, level: Level) -> bool {
+        match level {
+            Level::File => self.files[key as usize].test,
+            Level::Entity => self.entities[key as usize].files.iter().all(|&f| self.files[f as usize].test),
+            Level::Unit | Level::Repo => false,
+        }
+    }
+
     pub fn unit_label(&self, unit: u32) -> String {
         let u = &self.units[unit as usize];
         if self.repos.len() > 1 { format!("{}:{}", self.repos[u.repo as usize].name, u.name) } else { u.name.clone() }

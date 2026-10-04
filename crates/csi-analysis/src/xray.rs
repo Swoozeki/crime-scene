@@ -208,6 +208,8 @@ pub fn xray(ds: &Dataset, db: &Db, file: u32) -> Result<XRay> {
     }
     let mut functions: Vec<FnHotspot> = current
         .iter()
+        // one-line anonymous fragments (often mis-parsed type expressions) only add noise
+        .filter(|func| !(func.name.starts_with("<anonymous>") && func.loc <= 1 && func.cc <= 1))
         .map(|func| {
             let a = acc.get(&func.name);
             FnHotspot {

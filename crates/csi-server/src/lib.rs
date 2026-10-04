@@ -39,6 +39,7 @@ pub struct Params {
     pub by: Option<String>,
     pub focus: Option<String>,
     pub cross: Option<bool>,
+    pub tests: Option<bool>,
     pub min_support: Option<u32>,
     pub key: Option<u32>,
     pub base: Option<String>,
@@ -91,6 +92,7 @@ pub fn api(engine: &mut Engine, endpoint: &str, p: &Params) -> Result<Value> {
                 min_support: p.min_support,
                 cross_only: p.cross.unwrap_or(false),
                 include_expected: false,
+                include_tests: p.tests.unwrap_or(false),
                 ..Default::default()
             };
             let mut c = coupling(ds, &q, &p.scope());
@@ -98,8 +100,9 @@ pub fn api(engine: &mut Engine, endpoint: &str, p: &Params) -> Result<Value> {
             serde_json::to_value(c)?
         }
         "owners" => {
-            let mut o = ownership(ds, p.level(Level::Unit), &p.scope());
-            o.sort_by(|a, b| b.knowledge_loss.total_cmp(&a.knowledge_loss).then(a.name.cmp(&b.name)));
+            let level = p.level(Level::Unit);
+            let mut o = ownership(ds, level, &p.scope());
+            csi_analysis::social::sort_by_importance(ds, level, &p.scope(), &mut o);
             o.truncate(p.limit.unwrap_or(1000));
             serde_json::to_value(o)?
         }

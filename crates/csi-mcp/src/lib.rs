@@ -183,7 +183,7 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
                 .collect();
             let file_partners: Vec<Value> = coupling(
                 ds,
-                &CouplingQuery { level: Level::File, include_expected: true, min_lift: Some(1.0), focus: Some(file.path.clone()), ..Default::default() },
+                &CouplingQuery { level: Level::File, include_expected: true, include_tests: true, min_lift: Some(1.0), focus: Some(file.path.clone()), ..Default::default() },
                 &Scope::default(),
             )
             .into_iter()
@@ -258,7 +258,7 @@ experts to ask, defect history and recent tickets. Call this before editing a fi
             let Some(f) = resolve(engine, &a.path, a.repo.as_deref()) else { return not_found(&a.path) };
             let ds = &engine.ds;
             let by = a.by.as_deref().and_then(By::parse).unwrap_or_default();
-            let q = CouplingQuery { level: Level::File, by, include_expected: true, min_lift: Some(1.0), focus: Some(ds.files[f as usize].path.clone()), ..Default::default() };
+            let q = CouplingQuery { level: Level::File, by, include_expected: true, include_tests: true, min_lift: Some(1.0), focus: Some(ds.files[f as usize].path.clone()), ..Default::default() };
             let rows: Vec<Value> = coupling(ds, &q, &Scope::default())
                 .into_iter()
                 .filter_map(|c| {

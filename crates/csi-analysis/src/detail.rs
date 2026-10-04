@@ -113,6 +113,7 @@ pub fn detail(ds: &Dataset, db: &Db, level: Level, key: u32) -> Result<Detail> {
             level,
             by,
             include_expected: level == Level::File,
+            include_tests: level == Level::File,
             min_lift: Some(1.0),
             ..Default::default()
         };

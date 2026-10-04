@@ -276,8 +276,14 @@ fn missed_changes(ds: &Dataset, touched: &[u32], in_change: impl Fn(u32) -> bool
     let touched_set: HashSet<u32> = touched.iter().copied().collect();
     let mut best: HashMap<u32, MissedChange> = HashMap::new();
     for by in [By::Commit, By::Ticket] {
-        let q =
-            CouplingQuery { level: Level::File, by, include_expected: true, min_lift: Some(1.0), ..Default::default() };
+        let q = CouplingQuery {
+            level: Level::File,
+            by,
+            include_expected: true,
+            include_tests: true,
+            min_lift: Some(1.0),
+            ..Default::default()
+        };
         for c in coupling(ds, &q, &Scope::default()) {
             for (src, dst, conf) in [(c.a, c.b, c.conf_ab), (c.b, c.a, c.conf_ba)] {
                 if !touched_set.contains(&src) || in_change(dst) || conf < 0.6 || c.support < 5 {

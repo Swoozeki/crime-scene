@@ -120,6 +120,19 @@ pub fn ownership(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Ownership> {
     out
 }
 
+/// Order ownership rows by how much the code matters: production code before tests, then by
+/// hotspot score, so the people behind the busiest code come first rather than tiny files.
+pub fn sort_by_importance(ds: &Dataset, level: Level, scope: &Scope, rows: &mut [Ownership]) {
+    let score: HashMap<u32, f64> =
+        crate::hotspots::hotspots(ds, level, scope).into_iter().map(|h| (h.key, h.score)).collect();
+    rows.sort_by(|a, b| {
+        ds.key_is_test(a.key, level)
+            .cmp(&ds.key_is_test(b.key, level))
+            .then(score.get(&b.key).unwrap_or(&0.0).total_cmp(score.get(&a.key).unwrap_or(&0.0)))
+            .then(a.name.cmp(&b.name))
+    });
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Expert {
     pub name: String,

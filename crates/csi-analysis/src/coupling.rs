@@ -48,8 +48,10 @@ pub struct Coupling {
     pub cross_repo: bool,
     /// same logical entity (only at file level; expected coupling)
     pub same_entity: bool,
-    /// source ↔ its test
+    /// source ↔ its own test (same stem, wherever the test lives)
     pub test_pair: bool,
+    /// one side is test-only code
+    pub involves_test: bool,
 }
 
 impl Coupling {
@@ -70,6 +72,9 @@ pub struct CouplingQuery {
     pub min_lift: Option<f64>,
     pub cross_only: bool,
     pub include_expected: bool,
+    /// Keep pairs where one side is test-only code (hidden by default: "a test changes with
+    /// its subject" says little about the design).
+    pub include_tests: bool,
 }
 
 /// Build change sets: each is a deduped list of keys.
@@ -180,17 +185,15 @@ pub fn coupling(ds: &Dataset, q: &CouplingQuery, scope: &Scope) -> Vec<Coupling>
             }
             let (ua, ub) = (ds.key_unit(x, level), ds.key_unit(y, level));
             let (ra, rb) = (ds.key_repo(x, level), ds.key_repo(y, level));
-            let (same_entity, test_pair) = if level == Level::File {
-                let (fa, fb) = (&ds.files[x as usize], &ds.files[y as usize]);
-                (fa.entity == fb.entity, fa.entity == fb.entity && (fa.test != fb.test))
-            } else {
-                (false, false)
-            };
+            let same_entity = level == Level::File && ds.files[x as usize].entity == ds.files[y as usize].entity;
+            let (ta, tb) = (ds.key_is_test(x, level), ds.key_is_test(y, level));
+            let (a_name, b_name) = (ds.key_name(x, level), ds.key_name(y, level));
+            let test_pair = ta != tb && stem(&a_name) == stem(&b_name);
             Some(Coupling {
                 a: x,
                 b: y,
-                a_name: ds.key_name(x, level),
-                b_name: ds.key_name(y, level),
+                a_name,
+                b_name,
                 a_repo: ds.repos[ra as usize].name.clone(),
                 b_repo: ds.repos[rb as usize].name.clone(),
                 a_unit: ua.map(|u| ds.unit_label(u)),
@@ -207,9 +210,11 @@ pub fn coupling(ds: &Dataset, q: &CouplingQuery, scope: &Scope) -> Vec<Coupling>
                 cross_repo: ra != rb,
                 same_entity,
                 test_pair,
+                involves_test: ta || tb,
             })
         })
         .filter(|c| q.include_expected || !c.same_entity)
+        .filter(|c| q.include_tests || !c.involves_test)
         .filter(|c| !q.cross_only || c.cross_unit || c.cross_repo)
         .filter(|c| in_scope(c.a) || in_scope(c.b))
         .filter(|c| focus.is_none_or(|f| c.a_name.contains(f) || c.b_name.contains(f)))
@@ -218,6 +223,12 @@ pub fn coupling(ds: &Dataset, q: &CouplingQuery, scope: &Scope) -> Vec<Coupling>
         rank_score(y).total_cmp(&rank_score(x)).then(y.support.cmp(&x.support)).then(x.a_name.cmp(&y.a_name))
     });
     out
+}
+
+/// `src/app/cart.service.spec.ts` and `src/app/cart.service` → `cart.service`.
+fn stem(name: &str) -> String {
+    let key = csi_arch::entity_key(name);
+    key.rsplit('/').next().unwrap_or(&key).to_string()
 }
 
 fn rank_score(c: &Coupling) -> f64 {
