@@ -29,8 +29,10 @@ csi serve --open         # interactive web app
 ## How it improves on Code Maat and the book's method
 
 - **Clean data first.** Rename-aware history (`git log -M`), `.mailmap` + alias + email/name merging,
-  bots and AI co-authors filtered, lock files / vendored / generated / minified files excluded,
-  formatting sweeps and release/version-bump commits neutralized, mega-commits kept out of coupling.
+  bots and AI co-authors filtered, lock files / vendored / generated / minified / build-output /
+  translation files and changelogs excluded (plus whatever the repo marks `linguist-generated` or
+  `linguist-vendored` in `.gitattributes`), formatting sweeps and release / dependency-bump /
+  framework-upgrade commits neutralized, mega-commits kept out of coupling.
 - **Recency-weighted change frequency** (exponential decay, 180-day half-life by default), so last
   year's fire counts more than a 2019 refactor.
 - **Real complexity.** tree-sitter cyclomatic complexity and nesting per function for TypeScript,
@@ -93,7 +95,8 @@ path = "services/orders-api"
 Cross-repo coupling works best with ticket IDs in commit messages (default pattern `ABC-123`;
 configure `[tickets].pattern`). With squash merges, put the ticket in the PR title. Without tickets,
 commits by the same author in different repos within `session_hours` (4h) are linked instead.
-Test↔source pairs are hidden from coupling by default (`csi coupling --tests` shows them).
+Pairs involving tests or config files (`package.json`, CI yaml, …) are hidden from coupling by
+default; `csi coupling --tests --config-files` shows them.
 
 The analyzed branch is the remote's default branch, so **`git fetch` your repos** before scanning to
 see the latest history. csi itself never touches the network.

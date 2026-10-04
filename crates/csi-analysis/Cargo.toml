@@ -13,6 +13,7 @@ serde.workspace = true
 serde_json.workspace = true
 rusqlite.workspace = true
 regex.workspace = true
+globset.workspace = true
 rayon.workspace = true
 
 [dev-dependencies]

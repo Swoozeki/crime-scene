@@ -40,6 +40,7 @@ pub struct Params {
     pub focus: Option<String>,
     pub cross: Option<bool>,
     pub tests: Option<bool>,
+    pub config: Option<bool>,
     pub min_support: Option<u32>,
     pub key: Option<u32>,
     pub base: Option<String>,
@@ -93,6 +94,7 @@ pub fn api(engine: &mut Engine, endpoint: &str, p: &Params) -> Result<Value> {
                 cross_only: p.cross.unwrap_or(false),
                 include_expected: false,
                 include_tests: p.tests.unwrap_or(false),
+                include_config: p.config.unwrap_or(false),
                 ..Default::default()
             };
             let mut c = coupling(ds, &q, &p.scope());

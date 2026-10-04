@@ -4,7 +4,7 @@
 //! Node packages, PHP frameworks), manual config globs, and finally a directory fallback.
 
 use csi_core::config::UnitConfig;
-use globset::{Glob, GlobMatcher};
+use globset::{Glob, GlobMatcher, GlobSet, GlobSetBuilder};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -26,12 +26,28 @@ pub struct Unit {
 pub struct RepoArch {
     pub units: Vec<Unit>,
     pub frameworks: Vec<String>,
+    /// Globs the repo itself marks as generated or vendored in `.gitattributes`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excludes: Vec<String>,
+}
+
+impl RepoArch {
+    /// The repo's own excludes as a matcher (invalid patterns are skipped).
+    pub fn exclude_set(&self) -> GlobSet {
+        let mut b = GlobSetBuilder::new();
+        for g in &self.excludes {
+            if let Ok(glob) = Glob::new(g) {
+                b.add(glob);
+            }
+        }
+        b.build().unwrap_or_else(|_| GlobSet::empty())
+    }
 }
 
 /// Files whose content plugins need to read.
 pub fn wants_content(path: &str) -> bool {
     let name = basename(path);
-    matches!(name, "angular.json" | "nx.json" | "project.json" | "package.json" | "composer.json")
+    matches!(name, "angular.json" | "nx.json" | "project.json" | "package.json" | "composer.json" | ".gitattributes")
         || FEDERATION_FILE.is_match(name)
 }
 
@@ -289,7 +305,48 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
             u.name = if u.root.is_empty() { format!("{}#{n}", u.name) } else { u.root.clone() };
         }
     }
-    RepoArch { units, frameworks: frameworks.into_iter().collect() }
+    // --- .gitattributes: files the team already marks as generated or vendored for GitHub
+    let mut excludes = vec![];
+    for p in paths.iter().filter(|p| basename(p) == ".gitattributes" && !is_ignored_dir(p)) {
+        if let Some(text) = read(p) {
+            excludes.extend(gitattributes_excludes(dirname(p), &text));
+        }
+    }
+
+    RepoArch { units, frameworks: frameworks.into_iter().collect(), excludes }
+}
+
+/// Globs (relative to the repo root) for `linguist-generated` / `linguist-vendored` patterns
+/// in a `.gitattributes` file living in `dir`.
+pub fn gitattributes_excludes(dir: &str, text: &str) -> Vec<String> {
+    let mut out = vec![];
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') || line.starts_with('"') {
+            continue;
+        }
+        let mut parts = line.split_whitespace();
+        let Some(pattern) = parts.next() else { continue };
+        let marked = parts.any(|a| {
+            matches!(
+                a,
+                "linguist-generated" | "linguist-generated=true" | "linguist-vendored" | "linguist-vendored=true"
+            )
+        });
+        if !marked {
+            continue;
+        }
+        // git pattern rules: a leading or inner slash anchors to this directory,
+        // otherwise the pattern matches a name at any depth
+        let anchored = pattern.trim_end_matches('/').contains('/');
+        let mut p = pattern.trim_start_matches('/').to_string();
+        if p.ends_with('/') {
+            p.push_str("**");
+        }
+        let rel = if anchored { p } else { format!("**/{p}") };
+        out.push(if dir.is_empty() { rel } else { format!("{dir}/{rel}") });
+    }
+    out
 }
 
 // Avoid a dependency on csi-lang for one helper.
@@ -299,7 +356,9 @@ fn csi_lang_is_test(p: &str) -> bool {
         || l.contains("/test/")
         || l.contains("/tests/")
         || l.contains("/e2e/")
+        || l.contains("/spec/")
         || l.starts_with("tests/")
+        || l.starts_with("spec/")
 }
 
 /// Resolves files to units for one repo: manual globs, then longest plugin root, then directory fallback.

@@ -389,6 +389,12 @@ commits) and angular/angular (10.5k commits in the 3-year window). Changes from 
   out a feature branch doesn't change what is analyzed.
 - **Ticketless cross-repo sessions** (§8.2 fallback): one author's ticketless commits starting within
   `session_hours` (4h) of the session's first commit form one change set when they span ≥ 2 repos.
+- **Clutter**: built-in excludes also cover more build caches (`.next`, `.turbo`, `out`, …), third-party
+  dirs, generated code (`generated/`, `*.gen.ts`, `*.pb.ts`), translations (`*.xlf`, `*.po`) and
+  changelogs; each repo's `.gitattributes` `linguist-generated` / `linguist-vendored` patterns are
+  excluded too. Dependency-bump, "prepare … release" and framework-upgrade commits are neutralized
+  like releases. `spec/`, `__mocks__/`, `fixtures/` and `*.mock.*` count as test code. Coupling hides
+  pairs involving config/data files by default (`--config-files`).
 - **Test noise**: coupling pairs involving test-only code are hidden by default (`--tests`); source↔test
   pairs are matched by stem even when tests live in a separate `spec/` tree. Ownership lists rank by
   hotspot score with tests last. X-ray drops one-line anonymous fragments.

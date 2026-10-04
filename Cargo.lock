@@ -367,6 +367,7 @@ dependencies = [
  "csi-core",
  "csi-ingest",
  "csi-lang",
+ "globset",
  "rayon",
  "regex",
  "rusqlite",

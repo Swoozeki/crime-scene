@@ -101,6 +101,17 @@ fn fallback_descends_containers() {
 }
 
 #[test]
+fn gitattributes_marks_generated_and_vendored() {
+    let text = "# comment\n*.pbxproj binary\nsrc/api/client/** linguist-generated\n/legacy/ linguist-vendored=true\nschema.graphql.ts linguist-generated=true\ndocs/** linguist-documentation\nkeep.ts -linguist-generated\n";
+    assert_eq!(crate::gitattributes_excludes("", text), vec!["src/api/client/**", "legacy/**", "**/schema.graphql.ts"]);
+    assert_eq!(crate::gitattributes_excludes("web", "gen/*.ts linguist-generated\n"), vec!["web/gen/*.ts"]);
+    let arch = run(&[(".gitattributes", "src/api/client/** linguist-generated\n")], "shop");
+    let set = arch.exclude_set();
+    assert!(set.is_match("src/api/client/orders.ts"));
+    assert!(!set.is_match("src/app/orders.ts"));
+}
+
+#[test]
 fn entity_keys() {
     let k = entity_key("src/app/cart/cart.component.ts");
     assert_eq!(k, "src/app/cart/cart.component");

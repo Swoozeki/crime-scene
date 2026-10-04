@@ -137,6 +137,9 @@ enum Cmd {
         /// Include pairs where one side is test code
         #[arg(long)]
         tests: bool,
+        /// Include pairs where one side is a config file (package.json, CI yaml, ...)
+        #[arg(long)]
+        config_files: bool,
         #[arg(long)]
         min_support: Option<u32>,
         #[arg(long, short = 'n', default_value_t = 30)]
@@ -433,7 +436,7 @@ fn run(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Cmd::Coupling { focus, level, by, cross, tests, min_support, limit, scope } => {
+        Cmd::Coupling { focus, level, by, cross, tests, config_files, min_support, limit, scope } => {
             let engine = open_engine(&cli, true)?;
             let by = By::parse(by).context("--by must be commit or ticket")?;
             let level: Level = (*level).into();
@@ -445,6 +448,7 @@ fn run(cli: Cli) -> Result<()> {
                 min_support: *min_support,
                 cross_only: *cross,
                 include_tests: *tests,
+                include_config: *config_files,
                 ..Default::default()
             };
             let rows: Vec<_> = coupling(&engine.ds, &q, &scope.scope()).into_iter().take(*limit).collect();

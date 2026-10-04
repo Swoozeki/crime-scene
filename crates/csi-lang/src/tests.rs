@@ -178,6 +178,12 @@ fn test_paths() {
     assert!(is_test_path("src/app/cart.component.spec.ts"));
     assert!(is_test_path("tests/Unit/OrderTest.php"));
     assert!(!is_test_path("src/app/cart.component.ts"));
+    assert!(is_test_path("modules/store/spec/marbles.ts"));
+    assert!(is_test_path("spec/helpers.ts"));
+    assert!(is_test_path("src/api/__mocks__/client.ts"));
+    assert!(is_test_path("src/app/cart.mock.ts"));
+    assert!(is_test_path("tests/fixtures/orders.json"));
+    assert!(!is_test_path("modules/store/testing/src/testing.ts")); // a shipped testing API
 }
 
 #[test]

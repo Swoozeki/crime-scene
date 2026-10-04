@@ -145,9 +145,20 @@ pub struct Dataset {
     pub commit_by_sha: HashMap<(u32, String), u32>,
 }
 
+/// Release, version-bump, dependency-update and framework-upgrade commits: they touch every
+/// manifest at once and say nothing about the design.
 static RELEASE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)^(chore|build|ci)?(\([^)]*\))?:?\s*(release|bump(ed)? (version|to)|publish|prepare (for )?release|version bump)\b|^v?\d+\.\d+\.\d+([-+.][\w.]+)?$|^(release|version)\s+v?\d")
-        .unwrap()
+    Regex::new(concat!(
+        r"(?i)^(chore|build|ci)?(\([^)]*\))?:?\s*(release|bump(ed)? (version|to)|publish|prepare (for )?release|version bump)\b",
+        r"|^v?\d+\.\d+\.\d+([-+.][\w.]+)?$",
+        r"|^(release|version)\s+v?\d",
+        r"|^(\w+(\([^)]*\))?:\s*)?prepare\b.*\brelease\b",
+        r"|^(chore|build|fix|ci)\(deps(-dev)?\)",
+        r"|^(\w+(\([^)]*\))?:\s*)?bump\s+\S+\s+from\s+\S+\s+to\b",
+        r"|^(\w+(\([^)]*\))?:\s*)?(update|upgrade|bump|migrate)\s+(all\s+|the\s+)?(deps|dependencies|packages)\b",
+        r"|^(\w+(\([^)]*\))?:\s*)?(update|upgrade|migrate)\s+(to\s+)?(angular|nx|node|typescript|laravel|symfony|php)\s*v?\d",
+    ))
+    .unwrap()
 });
 
 static FORMAT_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -216,6 +227,7 @@ impl Dataset {
             .collect();
 
         // --- files (excluded paths never enter the dataset)
+        let repo_excludes: Vec<globset::GlobSet> = arches.iter().map(RepoArch::exclude_set).collect();
         let mut files: Vec<File> = vec![];
         let mut file_by_db: HashMap<i64, u32> = HashMap::new();
         {
@@ -226,7 +238,7 @@ impl Dataset {
             for row in rows {
                 let (id, repo_id, path, alive) = row?;
                 let Some(&repo) = repo_idx.get(&repo_id) else { continue };
-                if exclude.is_match(&path) {
+                if exclude.is_match(&path) || repo_excludes[repo as usize].is_match(&path) {
                     continue;
                 }
                 file_by_db.insert(id, files.len() as u32);
@@ -615,6 +627,17 @@ impl Dataset {
         }
     }
 
+    /// A key made only of config / data files (`package.json`, `tsconfig.json`, CI yaml, …).
+    pub fn key_is_config(&self, key: u32, level: Level) -> bool {
+        match level {
+            Level::File => self.files[key as usize].lang == Lang::Data,
+            Level::Entity => {
+                self.entities[key as usize].files.iter().all(|&f| self.files[f as usize].lang == Lang::Data)
+            }
+            Level::Unit | Level::Repo => false,
+        }
+    }
+
     pub fn unit_label(&self, unit: u32) -> String {
         let u = &self.units[unit as usize];
         if self.repos.len() > 1 { format!("{}:{}", self.repos[u.repo as usize].name, u.name) } else { u.name.clone() }
@@ -673,6 +696,32 @@ fn normalize_join(dir: &str, rel: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn release_and_upgrade_commits() {
+        for s in [
+            "chore: release 22.0.1",
+            "feat: prepare v22 release (#5182)",
+            "chore: prepare v21 (beta) release",
+            "feat: upgrade to Angular 22 (#5155)",
+            "chore: update to Angular v21-rc (#4992)",
+            "build(deps): bump rxjs from 7.8.0 to 7.8.1",
+            "chore(deps-dev): update eslint",
+            "Bump lodash from 4.17.20 to 4.17.21",
+            "chore: update dependencies",
+            "v1.2.3",
+        ] {
+            assert!(super::RELEASE_RE.is_match(s), "{s}");
+        }
+        for s in [
+            "feat(store): add release notes page",
+            "fix: upgrade path for legacy carts",
+            "feat: update dependency graph view",
+            "fix: release lock when cart is emptied",
+        ] {
+            assert!(!super::RELEASE_RE.is_match(s), "{s}");
+        }
+    }
+
     #[test]
     fn joins() {
         assert_eq!(super::normalize_join("src/app/a", "./a.component.html"), "src/app/a/a.component.html");

@@ -52,6 +52,8 @@ pub struct Coupling {
     pub test_pair: bool,
     /// one side is test-only code
     pub involves_test: bool,
+    /// one side is a config / data file (`package.json`, CI yaml, …)
+    pub involves_config: bool,
 }
 
 impl Coupling {
@@ -75,6 +77,9 @@ pub struct CouplingQuery {
     /// Keep pairs where one side is test-only code (hidden by default: "a test changes with
     /// its subject" says little about the design).
     pub include_tests: bool,
+    /// Keep pairs where one side is a config / data file (hidden by default: dependency and
+    /// version bumps make every manifest "couple" with every other).
+    pub include_config: bool,
 }
 
 /// Build change sets: each is a deduped list of keys.
@@ -254,10 +259,12 @@ pub fn coupling(ds: &Dataset, q: &CouplingQuery, scope: &Scope) -> Vec<Coupling>
                 same_entity,
                 test_pair,
                 involves_test: ta || tb,
+                involves_config: ds.key_is_config(x, level) || ds.key_is_config(y, level),
             })
         })
         .filter(|c| q.include_expected || !c.same_entity)
         .filter(|c| q.include_tests || !c.involves_test)
+        .filter(|c| q.include_config || !c.involves_config)
         .filter(|c| !q.cross_only || c.cross_unit || c.cross_repo)
         .filter(|c| in_scope(c.a) || in_scope(c.b))
         .filter(|c| focus.is_none_or(|f| c.a_name.contains(f) || c.b_name.contains(f)))
