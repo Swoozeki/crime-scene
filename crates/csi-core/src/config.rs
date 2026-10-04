@@ -143,6 +143,9 @@ impl Default for AuthorsConfig {
                 r"(?i)github-actions".into(),
                 r"(?i)^(ci|build|jenkins|gitlab-ci|semantic-release)(-bot)?\b".into(),
                 r"(?i)noreply@github\.com$".into(),
+                // AI assistants credited via Co-authored-by trailers
+                r"(?i)noreply@anthropic\.com$".into(),
+                r"(?i)^(claude|copilot|github copilot|cursor( agent)?|devin|codex|chatgpt|gemini|aider)\b".into(),
             ],
             aliases: BTreeMap::new(),
         }

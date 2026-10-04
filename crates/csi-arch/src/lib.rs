@@ -283,7 +283,7 @@ pub struct UnitIndex {
 
 const CONTAINERS: &[&str] = &[
     "apps", "libs", "packages", "projects", "services", "modules", "src", "app", "lib", "components", "features",
-    "pages", "domains", "Http", "Controllers",
+    "pages", "domains", "Http", "Controllers", "resources", "assets", "js", "ts",
 ];
 
 impl UnitIndex {

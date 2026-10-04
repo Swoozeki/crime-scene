@@ -53,7 +53,7 @@ pub struct Commit {
     pub subject: String,
     pub tickets: Vec<u32>,
     pub defect: bool,
-    /// formatting-only sweep
+    /// formatting sweep or release/version bump: no revision weight, no coupling
     pub format: bool,
     /// touches more than `max_commit_files`
     pub mega: bool,
@@ -144,6 +144,11 @@ pub struct Dataset {
     pub file_by_path: HashMap<(u32, String), u32>,
     pub commit_by_sha: HashMap<(u32, String), u32>,
 }
+
+static RELEASE_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^(chore|build|ci)?(\([^)]*\))?:?\s*(release|bump(ed)? (version|to)|publish|prepare (for )?release|version bump)\b|^v?\d+\.\d+\.\d+([-+.][\w.]+)?$|^(release|version)\s+v?\d")
+        .unwrap()
+});
 
 static FORMAT_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(format(ting|ted)?|prettier|lint(ing)?|eslint|reformat|whitespace|code ?style|indentation)\b")
@@ -336,7 +341,12 @@ impl Dataset {
                 }
                 let co: Vec<u32> = coauthors
                     .get(&id)
-                    .map(|v| v.iter().filter_map(|i| ident_map.get(i).copied()).filter(|&a| a != author).collect())
+                    .map(|v| {
+                        v.iter()
+                            .filter_map(|i| ident_map.get(i).copied())
+                            .filter(|&a| a != author && !authors[a as usize].is_bot)
+                            .collect()
+                    })
                     .unwrap_or_default();
                 commit_by_db.insert(id, commits.len() as u32);
                 commits.push(Commit {
@@ -372,7 +382,7 @@ impl Dataset {
         commits.retain(|c| !c.changes.is_empty());
         let mut commit_by_sha = HashMap::new();
         for (ci, c) in commits.iter_mut().enumerate() {
-            c.format = c.format && c.changes.len() >= 10;
+            c.format = (c.format && c.changes.len() >= 10) || RELEASE_RE.is_match(&c.subject);
             c.mega = c.changes.len() > max_files;
             c.weight = if c.format { 0.0 } else if c.mega { 0.25 } else { 1.0 };
             for ch in &c.changes {

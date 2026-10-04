@@ -37,6 +37,10 @@ pub struct Hotspot {
     pub age_days: Option<f64>,
     pub trend: Option<Trend>,
     pub files: u32,
+    /// every alive file is a test/spec/story
+    pub test: bool,
+    /// has at least one alive source-code file (not only config/docs)
+    pub code: bool,
 }
 
 /// All alive keys at `level` within `scope`, sorted by score (rank 1 = hottest).
@@ -150,8 +154,8 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
                 Level::Repo => (ds.repos[k as usize].name.clone(), "repo".into(), None),
             };
             let trend = match level {
-                Level::File => trends::classify(&ds.files[k as usize].trend),
-                Level::Entity => fs.iter().find_map(|&f| trends::classify(&ds.files[f as usize].trend)),
+                Level::File => trends::classify(&ds.files[k as usize].trend, ds.now),
+                Level::Entity => fs.iter().find_map(|&f| trends::classify(&ds.files[f as usize].trend, ds.now)),
                 _ => None,
             };
             Hotspot {
@@ -182,6 +186,8 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
                 last_change: a.last,
                 age_days: a.last.map(|l| (ds.now - l) as f64 / DAY),
                 trend,
+                test: !fs.is_empty() && fs.iter().all(|&f| ds.files[f as usize].test),
+                code: fs.iter().any(|&f| ds.files[f as usize].lang.weight() >= 0.5),
                 files: fs.len() as u32,
             }
         })
@@ -210,10 +216,19 @@ pub fn hotspots(ds: &Dataset, level: Level, scope: &Scope) -> Vec<Hotspot> {
             }
         }
     }
-    let freq: Vec<f64> = rows.iter().map(|r| r.rev_w).collect();
-    let pr = percentile_ranks(&freq);
-    for (r, p) in rows.iter_mut().zip(pr) {
-        r.score = if r.revisions == 0 { 0.0 } else { (p * r.norm_complexity * 1000.0).round() / 1000.0 };
+    // Frequency is log-scaled against the busiest key so the top of the long tail stays
+    // discriminating (percentiles would flatten 5 and 80 changes into the same bucket).
+    // measured against code only, so CHANGELOGs and package.json don't set the scale
+    let max_rw = match rows.iter().filter(|r| r.code && !r.test).map(|r| r.rev_w).fold(0.0, f64::max) {
+        m if m > 0.0 => m,
+        _ => rows.iter().map(|r| r.rev_w).fold(0.0, f64::max),
+    };
+    for r in rows.iter_mut() {
+        if r.test {
+            r.norm_complexity *= 0.5; // test code matters, but less than the code it tests
+        }
+        let freq = if max_rw > 0.0 { ((1.0 + r.rev_w).ln() / (1.0 + max_rw).ln()).min(1.0) } else { 0.0 };
+        r.score = if r.revisions == 0 { 0.0 } else { (freq * r.norm_complexity * 1000.0).round() / 1000.0 };
     }
     rows.sort_by(|a, b| b.score.total_cmp(&a.score).then(b.rev_w.total_cmp(&a.rev_w)).then(a.name.cmp(&b.name)));
     for (i, r) in rows.iter_mut().enumerate() {

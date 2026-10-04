@@ -4,7 +4,7 @@
 use crate::dataset::Dataset;
 use anyhow::{Context, Result};
 use csi_core::Db;
-use csi_core::util::{decay, percentile_ranks};
+use csi_core::util::decay;
 use csi_ingest::metrics::{load_functions, metrics_for};
 use csi_ingest::{CatFile, Git};
 use csi_lang::{Function, function_at};
@@ -224,10 +224,13 @@ pub fn xray(ds: &Dataset, db: &Db, file: u32) -> Result<XRay> {
             }
         })
         .collect();
-    let freq = percentile_ranks(&functions.iter().map(|f| f.rev_w).collect::<Vec<_>>());
-    let cx = percentile_ranks(&functions.iter().map(|f| f.cc as f64).collect::<Vec<_>>());
-    for (i, func) in functions.iter_mut().enumerate() {
-        func.score = if func.revisions == 0 { 0.0 } else { ((freq[i] * cx[i]) * 1000.0).round() / 1000.0 };
+    // Change frequency drives the ranking (log-scaled to the busiest function); complexity
+    // scales it, reaching full weight at the "brain function" threshold.
+    let max_rw = functions.iter().map(|f| f.rev_w).fold(0.0, f64::max);
+    for func in functions.iter_mut() {
+        let freq = if max_rw > 0.0 { (1.0 + func.rev_w).ln() / (1.0 + max_rw).ln() } else { 0.0 };
+        let cx = (func.cc as f64 / csi_lang::health::BRAIN_CC as f64).min(1.0);
+        func.score = if func.revisions == 0 { 0.0 } else { (freq * (0.4 + 0.6 * cx) * 1000.0).round() / 1000.0 };
     }
     functions.sort_by(|a, b| b.score.total_cmp(&a.score).then(b.revisions.cmp(&a.revisions)));
 

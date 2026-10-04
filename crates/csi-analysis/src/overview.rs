@@ -37,6 +37,7 @@ pub struct Overview {
     /// share of all knowledge held by inactive authors
     pub knowledge_loss: f64,
     pub bus_factor_one_units: usize,
+    /// strong (≥ 50% confidence) couplings across unit boundaries
     pub cross_unit_couplings: usize,
     pub cross_repo_couplings: usize,
     pub hotspot_concentration: f64,
@@ -84,9 +85,10 @@ pub fn overview(ds: &Dataset) -> Overview {
         .filter(|o| o.bus_factor == 1 && unit_loc.get(&o.key).copied().unwrap_or(0) >= 1000 && o.recent_authors > 0)
         .count();
     let q = CouplingQuery { level: Level::Entity, cross_only: true, ..Default::default() };
-    let cross_unit = coupling(ds, &q, &all).len();
+    let strong = |c: &crate::coupling::Coupling| c.degree() >= 0.5 && !c.test_pair;
+    let cross_unit = coupling(ds, &q, &all).iter().filter(|c| strong(c)).count();
     let cross_repo = if ds.repos.len() > 1 {
-        coupling(ds, &CouplingQuery { by: By::Ticket, ..q }, &all).iter().filter(|c| c.cross_repo).count()
+        coupling(ds, &CouplingQuery { by: By::Ticket, ..q }, &all).iter().filter(|c| c.cross_repo && strong(c)).count()
     } else {
         0
     };

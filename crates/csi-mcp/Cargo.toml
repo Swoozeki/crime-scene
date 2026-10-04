@@ -6,3 +6,9 @@ edition.workspace = true
 [dependencies]
 rmcp.workspace = true
 schemars.workspace = true
+csi-core.workspace = true
+csi-analysis.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

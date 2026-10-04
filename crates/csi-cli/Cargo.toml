@@ -8,3 +8,18 @@ name = "csi"
 path = "src/main.rs"
 
 [dependencies]
+csi-core.workspace = true
+csi-analysis.workspace = true
+csi-server.workspace = true
+csi-mcp.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+comfy-table.workspace = true
+owo-colors.workspace = true
+indicatif.workspace = true
+tokio.workspace = true
+walkdir.workspace = true
+csi-ingest.workspace = true
+csi-lang.workspace = true
+serde.workspace = true
