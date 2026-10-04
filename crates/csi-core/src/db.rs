@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn creates_schema() {
         let db = Db::open_in_memory().unwrap();
-        assert_eq!(db.meta_get("schema_version").unwrap().as_deref(), Some("3"));
+        assert_eq!(db.meta_get("schema_version").unwrap().as_deref(), Some("4"));
         db.conn.execute("INSERT INTO repos(name, path) VALUES ('a', '/a')", []).unwrap();
         db.reset().unwrap();
         let n: i64 = db.conn.query_row("SELECT count(*) FROM repos", [], |r| r.get(0)).unwrap();

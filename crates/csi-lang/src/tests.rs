@@ -196,3 +196,12 @@ fn function_lookup_prefers_innermost() {
     assert_eq!(function_at(&fs, 10).unwrap().name, "outer");
     assert!(function_at(&fs, 30).is_none());
 }
+
+#[test]
+fn decorators_in_doc_comments_are_ignored() {
+    let src = "/**\n * Example:\n * @Component({ selector: 'x' })\n */\nexport function signalStore() {\n  @Injectable({ providedIn: 'root' })\n  class Store {}\n  return Store;\n}\n";
+    let m = analyze("src/signal-store.ts", src.as_bytes(), 1 << 20).unwrap();
+    assert_eq!(m.summary.angular.as_ref().map(|a| a.kind.as_str()), Some("service"));
+    let doc_only = "/**\n * @Component({ selector: 'x' })\n */\nexport const x = 1;\n";
+    assert!(analyze("src/x.ts", doc_only.as_bytes(), 1 << 20).unwrap().summary.angular.is_none());
+}

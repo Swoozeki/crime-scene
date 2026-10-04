@@ -4,8 +4,9 @@ use crate::{AngularMeta, Summary};
 use regex::Regex;
 use std::sync::LazyLock;
 
+// Decorators open a line; this skips `@Component(` inside doc-comment examples.
 static DECORATOR: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"@(Component|Directive|Pipe|Injectable|NgModule)\s*\(").unwrap());
+    LazyLock::new(|| Regex::new(r"(?m)^\s*(export\s+)?@(Component|Directive|Pipe|Injectable|NgModule)\s*\(").unwrap());
 static INJECT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\binject\s*[<(]").unwrap());
 static INPUT: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"@Input\s*\(|\binput(\.required)?\s*[<(]|\bmodel(\.required)?\s*[<(]").unwrap());
@@ -23,7 +24,7 @@ static FUNCTIONAL_GUARD: LazyLock<Regex> = LazyLock::new(|| {
 
 pub fn enrich(path: &str, text: &str, ctor_params: u32, summary: &mut Summary) {
     let name = path.rsplit('/').next().unwrap_or(path);
-    let decorator = DECORATOR.captures(text).map(|c| c[1].to_string());
+    let decorator = DECORATOR.captures(text).map(|c| c[2].to_string());
     let functional = FUNCTIONAL_GUARD.captures(text).map(|c| c[1].to_string());
     let kind = match (decorator.as_deref(), functional.as_deref()) {
         (Some("Component"), _) => "component",
