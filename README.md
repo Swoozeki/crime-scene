@@ -1,5 +1,7 @@
 # csi: Crime Scene Investigator
 
+[![CI](https://github.com/Swoozeki/crime-scene/actions/workflows/ci.yml/badge.svg)](https://github.com/Swoozeki/crime-scene/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Find your way around any codebase by reading its git history.**
 
 csi shows you where the work happens, which files secretly depend on each other, and who to ask.
