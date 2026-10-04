@@ -178,7 +178,7 @@ Plugins auto-detect per repo; all are pure functions over the current tree:
 - **module-federation**: `module-federation.config.*`, `federation.config.*`, `webpack.config.*` with
   `ModuleFederationPlugin`, `@angular-architects/native-federation` → unit kind `mfe` (remote/host) and
   exposed modules.
-- **node**: `package.json` (workspaces) → units; NestJS module files grouped like Angular.
+- **node**: `package.json` (workspaces) → units.
 - **php**: `composer.json` → unit; Laravel (`app/Http/Controllers`, `app/Models`…) and Symfony (`src/Controller`…)
   layers → units of kind `layer`; PHP class = logical entity (one class per file assumption).
 - **manual**: config `[[architecture.unit]]` globs override/extend.

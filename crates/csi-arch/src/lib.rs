@@ -130,14 +130,11 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
         add(&mut units, Unit { name, kind: kind.into(), root, tags, source: "nx".into() });
     }
 
-    // --- Node packages (and NestJS)
+    // --- Node packages
     for p in paths.iter().filter(|p| basename(p) == "package.json" && !is_ignored_dir(p)) {
         let Some(text) = read(p) else { continue };
         let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
         let root = dirname(p).to_string();
-        if text.contains("\"@nestjs/core\"") {
-            frameworks.insert("nestjs".into());
-        }
         if text.contains("\"@angular/core\"") {
             frameworks.insert("angular".into());
         }
@@ -214,7 +211,7 @@ pub fn detect(paths: &[&str], read: &mut dyn FnMut(&str) -> Option<String>, repo
         }
     }
 
-    // --- Feature modules: Angular NgModules / route files, NestJS modules
+    // --- Feature modules: Angular NgModules / route files
     let mut feature_dirs: BTreeSet<String> = BTreeSet::new();
     for p in paths.iter().filter(|p| !is_ignored_dir(p) && !csi_lang_is_test(p)) {
         let name = basename(p);

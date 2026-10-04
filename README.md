@@ -42,7 +42,7 @@ csi serve --open         # interactive web app
   `templateUrl`/`styleUrls` links), so trivial template↔class coupling doesn't drown real signals.
 - **Architecture-aware.** Units come from Angular workspaces, Nx `project.json` (with tags), module
   federation / native federation configs (micro-frontends: host/remote), NgModules and route files,
-  Node packages, NestJS, Laravel and Symfony layers, plus your own globs.
+  Node packages, Laravel and Symfony layers, plus your own globs.
 - **Trends that mean something:** complexity now vs. a year ago, not vs. a file's first commit.
 - **Incremental** SQLite cache keyed by commit and blob sha; re-scans take seconds; force-pushes are detected.
 - **Where you work:** a ranked report, a PR risk check for CI, an MCP server for your coding agent,
