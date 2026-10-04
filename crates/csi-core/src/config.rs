@@ -88,6 +88,9 @@ pub struct AnalysisConfig {
     pub top_n_xray: usize,
     pub trend_samples: usize,
     pub max_file_bytes: usize,
+    /// Ticketless commits by one author across several repos within this many hours count as
+    /// one change (cross-repo coupling only). 0 disables.
+    pub session_hours: f64,
 }
 
 impl Default for AnalysisConfig {
@@ -103,6 +106,7 @@ impl Default for AnalysisConfig {
             top_n_xray: 50,
             trend_samples: 12,
             max_file_bytes: 512 * 1024,
+            session_hours: 4.0,
         }
     }
 }

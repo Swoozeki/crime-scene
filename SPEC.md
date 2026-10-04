@@ -387,8 +387,11 @@ commits) and angular/angular (10.5k commits in the 3-year window). Changes from 
 - **X-ray ranking**: frequency-led, scaled by complexity up to cc 15.
 - **Default branch** without a remote: `main`/`master`/`develop`/`trunk` before `HEAD`, so checking
   out a feature branch doesn't change what is analyzed.
-- **Not built (yet):** the ticketless "same author within 4h" cross-repo grouping (§8.2 fallback);
-  an automated Playwright UI suite (views were verified by hand in light and dark mode).
+- **Ticketless cross-repo sessions** (§8.2 fallback): one author's ticketless commits starting within
+  `session_hours` (4h) of the session's first commit form one change set when they span ≥ 2 repos.
+- **Test noise**: coupling pairs involving test-only code are hidden by default (`--tests`); source↔test
+  pairs are matched by stem even when tests live in a separate `spec/` tree. Ownership lists rank by
+  hotspot score with tests last. X-ray drops one-line anonymous fragments.
 - **Static export** bakes in all list views plus detail pages for the top ~60 entities and every
   entity named in a finding; change-risk needs the live app.
 

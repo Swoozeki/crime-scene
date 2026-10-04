@@ -5,7 +5,7 @@ use crate::dataset::Dataset;
 use crate::scope::{Level, Scope};
 use csi_core::util::DAY;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -120,16 +120,59 @@ pub fn change_sets(ds: &Dataset, level: Level, by: By, scope: &Scope) -> Vec<(Ve
                     sets.push((ks, ts));
                 }
             }
-            for ci in 0..ds.commits.len() as u32 {
-                if ds.commits[ci as usize].tickets.is_empty() && eligible(ci) {
+            let ticketless: Vec<u32> = (0..ds.commits.len() as u32)
+                .filter(|&ci| ds.commits[ci as usize].tickets.is_empty() && eligible(ci))
+                .collect();
+            for session in sessions(ds, &ticketless) {
+                let files: usize = session.iter().map(|&ci| ds.commits[ci as usize].changes.len()).sum();
+                let repos = session.iter().map(|&ci| ds.commits[ci as usize].repo).collect::<HashSet<_>>().len();
+                if repos > 1 && files <= max * 2 {
                     let mut ks = vec![];
-                    keys_of(ci, &mut ks);
-                    sets.push((ks, ds.commits[ci as usize].ts));
+                    for &ci in &session {
+                        keys_of(ci, &mut ks);
+                    }
+                    let ts = session.iter().map(|&ci| ds.commits[ci as usize].ts).max().unwrap_or(0);
+                    sets.push((ks, ts));
+                } else {
+                    for ci in session {
+                        let mut ks = vec![];
+                        keys_of(ci, &mut ks);
+                        sets.push((ks, ds.commits[ci as usize].ts));
+                    }
                 }
             }
         }
     }
     sets
+}
+
+/// Groups commits into work sessions: one author, starting within `session_hours` of the
+/// session's first commit. Without tickets, this is how a change that spans repos shows up.
+fn sessions(ds: &Dataset, commits: &[u32]) -> Vec<Vec<u32>> {
+    let window = (ds.cfg.analysis.session_hours * 3600.0) as i64;
+    if window <= 0 || ds.repos.len() < 2 {
+        return commits.iter().map(|&c| vec![c]).collect();
+    }
+    let mut by_author: HashMap<u32, Vec<u32>> = HashMap::new();
+    for &ci in commits {
+        by_author.entry(ds.commits[ci as usize].author).or_default().push(ci);
+    }
+    let mut out = vec![];
+    for (_, mut cs) in by_author {
+        cs.sort_by_key(|&ci| ds.commits[ci as usize].ts);
+        let mut cur: Vec<u32> = vec![];
+        for ci in cs {
+            let ts = ds.commits[ci as usize].ts;
+            if cur.first().is_some_and(|&s| ts - ds.commits[s as usize].ts > window) {
+                out.push(std::mem::take(&mut cur));
+            }
+            cur.push(ci);
+        }
+        if !cur.is_empty() {
+            out.push(cur);
+        }
+    }
+    out
 }
 
 pub fn coupling(ds: &Dataset, q: &CouplingQuery, scope: &Scope) -> Vec<Coupling> {

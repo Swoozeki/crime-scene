@@ -80,6 +80,7 @@ coupling_min_lift = 1.5
 inactive_after_days = 180    # authors silent this long count as knowledge loss
 top_n_xray = 50              # files that get function-level X-ray on scan
 trend_samples = 12
+session_hours = 4            # ticketless commits by one author across repos within 4h = one change
 
 [exclude]
 globs = []                   # added to built-in excludes (lock files, dist, vendor, binaries, ...)

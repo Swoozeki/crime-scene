@@ -201,6 +201,15 @@ fn end_to_end() {
     let kinds: Vec<&str> = f.iter().map(|f| f.kind.as_str()).collect();
     assert!(kinds.contains(&"deteriorating_hotspot") || kinds.contains(&"hotspot"), "{kinds:?}");
     assert!(kinds.contains(&"hidden_coupling"), "{kinds:?}");
+    // golden: each scripted story produces its finding, about the right subject
+    let about = |kind: &str, subject: &str| f.iter().any(|x| x.kind == kind && x.subject.contains(subject));
+    // legacy code is all Bob's, but quiet for over a year: not worth a newcomer's attention
+    assert!(!about("knowledge_loss", "legacy"), "{kinds:?}");
+    assert!(about("deteriorating_hotspot", "cart") || about("hotspot", "cart"), "{kinds:?}");
+    assert!(about("xray_hotspot", "cart"), "{kinds:?}");
+    assert!(about("hidden_coupling", "cart"), "{kinds:?}");
+    assert!(f.iter().all(|x| !x.subject.contains("src/gen/")), "mega-commit files must not surface");
+    assert!(f.iter().all(|x| !x.recommendation.is_empty() && x.evidence.is_object()));
     assert!(f.windows(2).all(|w| w[0].severity >= w[1].severity));
 
     // overview + detail don't panic and see both repos
@@ -241,4 +250,105 @@ fn end_to_end() {
     // incremental rescan picks up nothing new on main
     let again = scan(&w.cfg, &db, &ScanOptions::default(), &noop).unwrap();
     assert!(again.repos.iter().all(|r| r.new_commits == 0));
+}
+
+/// Second scenario: what a newcomer reads — renames keep history, test noise stays out of
+/// coupling, ticketless cross-repo work is linked by author sessions, owners rank by importance.
+#[test]
+fn onboarding_signals() {
+    const DANA: &str = "Dana <dana@shop.io>";
+    let tmp = tempfile::tempdir().unwrap();
+    let web = FixtureRepo::at(&tmp.path().join("web"));
+    let svc = FixtureRepo::at(&tmp.path().join("svc"));
+
+    // checkout.ts moves halfway through its life; history must follow it
+    for i in 0..6 {
+        web.commit(
+            DANA,
+            300.0 - i as f64 * 10.0,
+            "work on checkout",
+            &[Op::Write("src/old/checkout.ts", Box::leak(ts_with_branches("checkout", 10 + i, i).into_boxed_str()))],
+        );
+    }
+    web.commit(DANA, 230.0, "move checkout", &[Op::Move("src/old/checkout.ts", "src/checkout/checkout.ts")]);
+    // the source and its test (in a separate spec/ tree) always change together,
+    // and the web change always needs a matching svc change, without ticket IDs
+    for i in 0..8 {
+        let day = 200.0 - i as f64 * 10.0;
+        web.commit(
+            DANA,
+            day,
+            "checkout and its test",
+            &[
+                Op::Write(
+                    "src/checkout/checkout.ts",
+                    Box::leak(ts_with_branches("checkout", 20 + i, i).into_boxed_str()),
+                ),
+                Op::Write(
+                    "spec/checkout.spec.ts",
+                    Box::leak(format!("describe('checkout', () => {{ it('{i}', () => {{}}); }});\n").into_boxed_str()),
+                ),
+            ],
+        );
+        svc.commit(
+            DANA,
+            day - 0.05, // ~1h later
+            "matching backend change",
+            &[Op::Write("src/orders.ts", Box::leak(ts_with_branches("orders", 2 + i, i).into_boxed_str()))],
+        );
+        // unrelated noise so lift is meaningful
+        web.commit(
+            CARL,
+            day - 3.0,
+            "misc",
+            &[Op::Write("src/misc.ts", Box::leak(format!("export const m = {i};\n").into_boxed_str()))],
+        );
+    }
+
+    let write_cfg = |session_hours: f64| {
+        std::fs::write(
+            tmp.path().join(csi_core::config::CONFIG_FILE),
+            format!(
+                "[[repo]]\nname = \"web\"\npath = \"web\"\n[[repo]]\nname = \"svc\"\npath = \"svc\"\n\
+                 [analysis]\nsince = \"all\"\nsession_hours = {session_hours}\n"
+            ),
+        )
+        .unwrap();
+        Config::load(&tmp.path().join(csi_core::config::CONFIG_FILE)).unwrap()
+    };
+    let cfg = write_cfg(4.0);
+    let db = Db::open(&cfg.cache_path).unwrap();
+    scan(&cfg, &db, &ScanOptions::default(), &|_: &str| {}).unwrap();
+    let ds = Dataset::load(&cfg, &db).unwrap();
+
+    // renames: the moved file carries its pre-move history
+    let checkout = ds.find_file("src/checkout/checkout.ts", Some("web")).unwrap();
+    assert!(ds.files[checkout as usize].commits.len() >= 14, "{}", ds.files[checkout as usize].commits.len());
+
+    // test noise: hidden by default, recognized as a source↔test pair when asked for
+    let fq = CouplingQuery { level: Level::File, min_lift: Some(1.0), ..Default::default() };
+    let pairs = coupling(&ds, &fq, &Scope::default());
+    assert!(!pairs.iter().any(|c| c.involves_test), "{pairs:#?}");
+    let with_tests = coupling(&ds, &CouplingQuery { include_tests: true, ..fq.clone() }, &Scope::default());
+    let tp = with_tests.iter().find(|c| c.involves_test).expect("checkout ↔ its spec");
+    assert!(tp.test_pair, "{tp:#?}");
+
+    // ticketless cross-repo coupling through author sessions
+    let tq = CouplingQuery { level: Level::File, by: By::Ticket, min_lift: Some(1.0), ..Default::default() };
+    let cross = |ds: &Dataset| {
+        coupling(ds, &tq, &Scope::default()).into_iter().any(|c| {
+            c.cross_repo
+                && [&c.a_name, &c.b_name].iter().any(|n| n.contains("orders"))
+                && [&c.a_name, &c.b_name].iter().any(|n| n.contains("checkout.ts"))
+        })
+    };
+    assert!(cross(&ds), "session grouping should link web and svc");
+    let off = write_cfg(0.0);
+    assert!(!cross(&Dataset::load(&off, &db).unwrap()), "session_hours = 0 disables it");
+
+    // owners: production code first, tests last
+    let mut own = ownership(&ds, Level::File, &Scope::default());
+    crate::social::sort_by_importance(&ds, Level::File, &Scope::default(), &mut own);
+    assert!(own[0].name.ends_with("checkout.ts"), "{:?}", own.iter().map(|o| &o.name).collect::<Vec<_>>());
+    assert!(own.last().unwrap().name.contains(".spec."), "{:?}", own.iter().map(|o| &o.name).collect::<Vec<_>>());
 }

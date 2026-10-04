@@ -90,8 +90,10 @@ name = "orders-api"
 path = "services/orders-api"
 ```
 
-Cross-repo coupling needs ticket IDs in commit messages (default pattern `ABC-123`; configure
-`[tickets].pattern`). With squash merges, put the ticket in the PR title.
+Cross-repo coupling works best with ticket IDs in commit messages (default pattern `ABC-123`;
+configure `[tickets].pattern`). With squash merges, put the ticket in the PR title. Without tickets,
+commits by the same author in different repos within `session_hours` (4h) are linked instead.
+Test↔source pairs are hidden from coupling by default (`csi coupling --tests` shows them).
 
 The analyzed branch is the remote's default branch, so **`git fetch` your repos** before scanning to
 see the latest history. csi itself never touches the network.
@@ -108,6 +110,7 @@ All keys are optional — see the generated `crimescene.toml`:
 | `analysis.coupling_min_support` / `_confidence` / `_lift` | 5 / 0.3 / 1.5 | coupling thresholds |
 | `analysis.inactive_after_days` | 180 | knowledge-loss cut-off |
 | `analysis.top_n_xray` | 50 | files that get X-ray + trend sampling on scan |
+| `analysis.session_hours` | 4 | ticketless commits by one author across repos within this window count as one change (0 = off) |
 | `exclude.globs` | | added to built-in excludes |
 | `tickets.pattern` / `defects.pattern` | | regexes over commit messages |
 | `authors.bots` / `authors.aliases` | | bot regexes; canonical name → aliases |
