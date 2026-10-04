@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build UI (embedded into the binary)
+        run: |
+          pnpm -C ui install --frozen-lockfile
+          pnpm -C ui check
+          pnpm -C ui build
+
+      - name: Format
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Test
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          cargo test --workspace
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: UI smoke tests
+        run: |
+          pnpm -C ui exec playwright install --with-deps chromium
+          pnpm -C ui test:e2e

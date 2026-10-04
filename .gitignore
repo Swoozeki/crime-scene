@@ -3,3 +3,5 @@ target/
 ui/node_modules/
 ui/dist/
 .DS_Store
+ui/test-results/
+ui/playwright-report/
